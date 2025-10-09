@@ -1,18 +1,53 @@
 import { firebaseAdmin, firestore } from '../../config/firebase.js';
 
+// export const createUser = async ({ email, password, displayName }) => {
+//     if (!firebaseAdmin || !firebaseAdmin.auth) throw new Error('Firebase Admin not initialized');
+//     const userRecord = await firebaseAdmin.auth().createUser({ email, password, displayName });
+//     if (firestore) {
+//         await firestore.collection('users').doc(userRecord.uid).set({
+//             email,
+//             displayName,
+//             createdAt: Date.now(),
+//         });
+//     }
+//     const customToken = await firebaseAdmin.auth().createCustomToken(userRecord.uid);
+//     return { uid: userRecord.uid, customToken };
+// };
+
+import { cleanUndefined } from '../../utils/cleanUndefined.js';
+
 export const createUser = async ({ email, password, displayName }) => {
-    if (!firebaseAdmin || !firebaseAdmin.auth) throw new Error('Firebase Admin not initialized');
-    const userRecord = await firebaseAdmin.auth().createUser({ email, password, displayName });
+    if (!firebaseAdmin || !firebaseAdmin.auth)
+        throw new Error('Firebase Admin not initialized');
+
+    // 1️⃣ Tạo user trong Firebase Authentication
+    const userRecord = await firebaseAdmin.auth().createUser({
+        email,
+        password,
+        displayName: displayName || '', // tránh undefined
+    });
+
+    // 2️⃣ Chuẩn bị dữ liệu Firestore (lọc bỏ undefined)
+    const userData = cleanUndefined({
+        uid: userRecord.uid,
+        email,
+        displayName,
+        createdAt: new Date(), // kiểu Date object
+    });
+
+    // 3️⃣ Lưu vào Firestore nếu có
     if (firestore) {
-        await firestore.collection('users').doc(userRecord.uid).set({
-            email,
-            displayName,
-            createdAt: Date.now(),
-        });
+        await firestore.collection('users').doc(userRecord.uid).set(userData);
     }
-    const customToken = await firebaseAdmin.auth().createCustomToken(userRecord.uid);
+
+    // 4️⃣ Tạo custom token để frontend đăng nhập ngay sau khi signup
+    const customToken = await firebaseAdmin
+        .auth()
+        .createCustomToken(userRecord.uid);
+
     return { uid: userRecord.uid, customToken };
 };
+
 
 export const getUserProfile = async (uid) => {
     if (!firestore) return null;
