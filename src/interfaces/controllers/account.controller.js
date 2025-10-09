@@ -1,6 +1,7 @@
 import { createAccount } from '../../usecases/account/createAccount.js';
 import { signInAccount } from '../../usecases/account/signInAccount.js';
 import { getUserProfileData } from '../../usecases/account/getUserProfile.js';
+import { signOutAccount } from '../../usecases/account/signOut.js';
 
 export const signup = async (req, res, next) => {
     try {
@@ -30,4 +31,14 @@ export const getProfile = async (req, res, next) => {
     } catch (err) {
         next(err);
     }
+};
+
+export const signOut = async (req, res, next) => {
+  try {
+    const { uid } = req.body; // hoặc req.user.uid nếu đã xác thực
+    const result = await signOutAccount(uid);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
 };

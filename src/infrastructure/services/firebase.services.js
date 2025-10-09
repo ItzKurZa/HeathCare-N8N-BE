@@ -25,3 +25,20 @@ export const verifyIdToken = async (idToken) => {
     const decoded = await firebaseAdmin.auth().verifyIdToken(idToken);
     return decoded;
 };
+
+export const signOutUser = async (uid) => {
+    try {
+        await admin.auth().revokeRefreshTokens(uid);
+
+        const user = await admin.auth().getUser(uid);
+        const tokensValidAfterTime = new Date(user.tokensValidAfterTime).getTime() / 1000;
+        return {
+            success: true,
+            message: 'User signed out successfully (tokens revoked)',
+            tokensValidAfter: tokensValidAfterTime,
+        };
+    } catch (error) {
+        console.error('Sign-out error:', error);
+        throw new Error('Error signing out user');
+    }
+};
