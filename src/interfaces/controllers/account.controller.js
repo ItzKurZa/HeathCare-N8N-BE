@@ -5,8 +5,8 @@ import { signOutAccount } from '../../usecases/account/signOut.js';
 
 export const signup = async (req, res, next) => {
     try {
-        const { email, password, displayName } = req.body;
-        const result = await createAccount({ email, password, displayName });
+        const { email, password, fullname, phone, cccd } = req.body;
+        const result = await createAccount({ email, password, fullname, phone, cccd });
         res.status(201).json({ success: true, ...result });
     } catch (err) {
         next(err);
@@ -34,11 +34,11 @@ export const getProfile = async (req, res, next) => {
 };
 
 export const signOut = async (req, res, next) => {
-  try {
-    const { uid } = req.body;
-    const result = await signOutAccount(uid);
-    res.status(200).json(result);
-  } catch (err) {
-    next(err);
-  }
+    try {
+        const { uid } = req.body;
+        const result = await signOutAccount(uid);
+        res.status(200).json(result);
+    } catch (err) {
+        next(err);
+    }
 };
