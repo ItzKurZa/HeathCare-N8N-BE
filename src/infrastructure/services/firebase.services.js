@@ -8,7 +8,6 @@ export const createUser = async ({ email, password, fullname, phone, cccd }) => 
     const userRecord = await firebaseAdmin.auth().createUser({
         email,
         password,
-        fullname: fullname || '',
     });
 
     const userData = cleanUndefined({
