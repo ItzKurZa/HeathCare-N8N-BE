@@ -4,6 +4,7 @@ import { getUserProfileData } from '../../usecases/account/getUserProfile.js';
 import { signOutAccount } from '../../usecases/account/signOut.js';
 
 export const signup = async (req, res, next) => {
+    console.log('Request body:', req.body);
     try {
         const { email, password, fullname, phone, cccd } = req.body;
         const result = await createAccount({ email, password, fullname, phone, cccd });
