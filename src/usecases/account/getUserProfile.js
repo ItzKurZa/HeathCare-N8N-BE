@@ -1,4 +1,4 @@
-import { getUserProfile } from '../../infrastructure/services/firebase.service.js';
+import { getUserProfile } from '../../infrastructure/services/firebase.services.js';
 import { requireFields } from '../../utils/validate.js';
 
 export const getUserProfileData = async ({ uid }) => {

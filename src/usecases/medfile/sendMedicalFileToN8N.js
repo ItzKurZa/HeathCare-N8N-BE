@@ -1,4 +1,4 @@
-import { sendMedicalFile } from '../../infrastructure/services/n8n.service.js';
+import { sendMedicalFile } from '../../infrastructure/services/n8n.services.js';
 
 export const sendMedicalFileToN8n = async ({ fields, file }) => {
     if (!file) throw new Error('File required');

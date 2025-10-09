@@ -1,4 +1,4 @@
-import { getChatHistory } from '../../infrastructure/services/n8n.service.js';
+import { getChatHistory } from '../../infrastructure/services/n8n.services.js';
 import { requireFields } from '../../utils/validate.js';
 
 export const fetchChatHistory = async ({ userId }) => {
