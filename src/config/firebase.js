@@ -27,3 +27,10 @@ if (serviceAccount) {
 
 export const firebaseAdmin = admin;
 export const firestore = initialized ? admin.firestore() : null;
+
+if (firestore) {
+    firestore.settings({ ignoreUndefinedProperties: true });
+    console.log('🔥 Firestore initialized with ignoreUndefinedProperties = true');
+} else {
+    console.warn('⚠️ Firestore not initialized — check your Firebase credentials');
+}
