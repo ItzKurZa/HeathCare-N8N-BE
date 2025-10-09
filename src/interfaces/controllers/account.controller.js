@@ -4,7 +4,6 @@ import { getUserProfileData } from '../../usecases/account/getUserProfile.js';
 import { signOutAccount } from '../../usecases/account/signOut.js';
 
 export const signup = async (req, res, next) => {
-    console.log('Request body:', req.body);
     try {
         const { email, password, fullname, phone, cccd } = req.body;
         const result = await createAccount({ email, password, fullname, phone, cccd });
@@ -24,21 +23,27 @@ export const signin = async (req, res, next) => {
     }
 };
 
+// GET /profile
 export const getProfile = async (req, res, next) => {
     try {
-        const uid = req.params.uid;
-        const result = await getUserProfileData({ uid });
-        res.status(200).json({ success: true, profile: result });
+        const uid = req.user?.uid;
+        if (!uid) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+        const profile = await getUserProfileData({ uid });
+        res.status(200).json({ success: true, profile });
     } catch (err) {
         next(err);
     }
 };
 
+// POST /signout
 export const signOut = async (req, res, next) => {
     try {
-        const { uid } = req.body;
+        const uid = req.user?.uid;
+        if (!uid) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
         const result = await signOutAccount(uid);
-        res.status(200).json(result);
+        res.status(200).json({ success: true, ...result });
     } catch (err) {
         next(err);
     }
