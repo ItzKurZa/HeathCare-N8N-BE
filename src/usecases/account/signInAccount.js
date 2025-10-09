@@ -8,5 +8,6 @@ export const signInAccount = async ({ email, password }) => {
 
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${config.firebase.apiKey}`;
     const response = await axios.post(url, { email, password, returnSecureToken: true });
+    console.log('signInAccount response:', response.data);
     return response.data;
 };

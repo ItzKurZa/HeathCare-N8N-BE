@@ -23,7 +23,6 @@ export const signin = async (req, res, next) => {
     }
 };
 
-// GET /profile
 export const getProfile = async (req, res, next) => {
     try {
         const uid = req.user?.uid;
@@ -36,7 +35,6 @@ export const getProfile = async (req, res, next) => {
     }
 };
 
-// POST /signout
 export const signOut = async (req, res, next) => {
     try {
         const uid = req.user?.uid;
