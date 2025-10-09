@@ -1,5 +1,4 @@
 import { firebaseAdmin, firestore } from '../../config/firebase.js';
-import { cleanUndefined } from '../../utils/cleanUndefined.js';
 
 export const createUser = async ({ email, password, fullname, phone, cccd }) => {
     if (!firebaseAdmin || !firebaseAdmin.auth)
@@ -10,14 +9,14 @@ export const createUser = async ({ email, password, fullname, phone, cccd }) => 
         password,
     });
 
-    const userData = cleanUndefined({
+    const userData = {
         uid: userRecord.uid,
         email,
         fullname,
         phone,
         cccd,
         createdAt: new Date(),
-    });
+    };
 
     console.log('Created user:', userRecord.uid, userData);
 
