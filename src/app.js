@@ -10,7 +10,7 @@ import { errorHandler } from './infrastructure/middlewares/errorHandler.js';
 
 const app = express();
 
-app.use(cors({ origin: config.frontendUrl }));
+app.use(cors({ origin: config.frontendUrl || "https://zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3--5173--96435430.local-credentialless.webcontainer-api.io" }));
 app.use(express.json());
 
 app.use('/api/booking', bookingRoutes);
