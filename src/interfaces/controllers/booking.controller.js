@@ -1,5 +1,5 @@
-import { sendBookingToN8n } from '../../usecases/booking/sendBookingToN8n.js';
-import { fetchProfileData } from '../../usecases/booking/fetchProfileData.js';
+import { sendBookingToN8n } from '../../usecases/booking/sendBookingToN8N.js';
+import { fetchProfileData } from '../../usecases/booking/fetchBookingData.js';
 
 export const submitBooking = async (req, res, next) => {
     try {
