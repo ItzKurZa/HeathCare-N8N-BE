@@ -20,7 +20,7 @@ export const createUser = async ({ email, password, fullname, phone, cccd }) => 
     });
 
     if (firestore) {
-        await firestore.collection('users').doc(userRecord.uid).set(userData);
+        await firestore.collection('users').doc(userRecord.uid).set(userData, { merge: true });
     }
 };
 
