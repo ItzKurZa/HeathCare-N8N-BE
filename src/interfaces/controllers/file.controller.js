@@ -1,4 +1,4 @@
-import { sendMedicalFileToN8n } from '../../usecases/medical/sendMedicalFileToN8N.js';
+import { sendMedicalFileToN8n } from '../../usecases/medfile/sendMedicalFileToN8N.js';
 
 export const uploadMedical = async (req, res, next) => {
     try {
