@@ -35,7 +35,7 @@ export const getProfile = async (req, res, next) => {
 
 export const signOut = async (req, res, next) => {
   try {
-    const { uid } = req.body; // hoặc req.user.uid nếu đã xác thực
+    const { uid } = req.body;
     const result = await signOutAccount(uid);
     res.status(200).json(result);
   } catch (err) {

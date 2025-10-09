@@ -15,7 +15,7 @@ app.use(express.json());
 
 app.use('/api/booking', bookingRoutes);
 app.use('/api/medical', fileRoutes);
-app.use('/api/profile', bookingRoutes); // GET /api/profile/:userId handled in booking.routes
+app.use('/api/profile', bookingRoutes);
 app.use('/api/account', accountRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 
