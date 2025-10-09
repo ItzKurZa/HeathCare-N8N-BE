@@ -43,9 +43,9 @@ export const verifyIdToken = async (idToken) => {
 
 export const signOutUser = async (uid) => {
     try {
-        await admin.auth().revokeRefreshTokens(uid);
+        await firebaseAdmin.auth().revokeRefreshTokens(uid);
 
-        const user = await admin.auth().getUser(uid);
+        const user = await firebaseAdmin.auth().getUser(uid);
         const tokensValidAfterTime = new Date(user.tokensValidAfterTime).getTime() / 1000;
         return {
             success: true,
