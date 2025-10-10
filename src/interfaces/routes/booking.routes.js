@@ -3,7 +3,7 @@ import { submitBooking, getProfileData } from '../controllers/booking.controller
 
 const router = express.Router();
 
-router.post('/', submitBooking);
+router.post('/booking', submitBooking);
 router.get('/:userId', getProfileData);
 
 export default router;
