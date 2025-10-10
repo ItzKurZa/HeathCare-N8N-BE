@@ -37,10 +37,10 @@ export const fetchUserData = async (userId) => {
     return r.data;
 };
 
-export const sendChatMessage = async ({ userId, message }) => {
+export const sendChatMessage = async ({ user_id, message }) => {
     const url = config.n8n.chatSend;
     if (!url) throw new Error('N8N chat send webhook not configured');
-    console.log('Posting to N8N chat webhook:', url, userId, message);
-    const r = await axios.post(url, { userId, message}, { timeout: 15000 });
+    console.log('Posting to N8N chat webhook:', url, user_id, message);
+    const r = await axios.post(url, { user_id, message}, { timeout: 15000 });
     return r.data;
 };
