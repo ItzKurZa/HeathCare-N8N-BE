@@ -29,7 +29,7 @@ export const uploadFileToBackblaze = async (file) => {
         let fileUrl;
 
         if (config.backblaze.isPrivateBucket === 'true') {
-            const validDuration = Number(config.backblaze.tempUrlDuration) || 3600; // default: 1h
+            const validDuration = Number(config.backblaze.tempUrlDuration); // default: 1h
 
             const authResponse = await backblaze.getDownloadAuthorization({
                 bucketId: config.backblaze.bucketId,
