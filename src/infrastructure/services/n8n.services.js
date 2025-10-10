@@ -9,19 +9,30 @@ export const sendBooking = async (bookingData) => {
     return r.data;
 };
 
-export const sendMedicalFile = async ({ fields, file }) => {
+import axios from 'axios';
+import { config } from '../../config/env.js';
+
+export const sendMedicalFile = async ({ fields }) => {
     const url = config.n8n.medical;
     if (!url) throw new Error('N8N medical webhook URL not configured');
 
-    const form = new FormData();
-    // append text fields
-    Object.keys(fields || {}).forEach((k) => form.append(k, fields[k]));
-    // file: multer memoryStorage gives file.buffer
-    form.append('file', file.buffer, { filename: file.originalname, contentType: file.mimetype });
+    // ⚙️ Kiểm tra dữ liệu đầu vào
+    if (!fields?.fileUrl) {
+        throw new Error('Missing fileUrl in payload');
+    }
 
-    const headers = form.getHeaders();
-    const r = await axios.post(url, form, { headers, maxBodyLength: Infinity, timeout: 30000 });
-    return r.data;
+    try {
+        const r = await axios.post(url, fields, {
+            headers: { 'Content-Type': 'application/json' },
+            maxBodyLength: Infinity,
+            timeout: 30000,
+        });
+
+        return r.data;
+    } catch (err) {
+        console.error('❌ Error sending medical file to N8N:', err.message);
+        throw err;
+    }
 };
 
 export const fetchUserData = async (userId) => {
