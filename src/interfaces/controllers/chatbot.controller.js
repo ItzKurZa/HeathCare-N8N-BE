@@ -1,3 +1,5 @@
+import { sendMessageToN8n } from '../../usecases/chatbot/sendMessageToN8N.js';
+
 export const sendMessage = async (req, res, next) => {
   try {
     const { user_id, message } = req.body;
