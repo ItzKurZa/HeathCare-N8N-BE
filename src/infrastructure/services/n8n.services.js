@@ -12,7 +12,6 @@ export const sendMedicalFile = async ({ fields }) => {
     const url = config.n8n.medical;
     if (!url) throw new Error('N8N medical webhook URL not configured');
 
-    // ⚙️ Kiểm tra dữ liệu đầu vào
     if (!fields?.fileUrl) {
         throw new Error('Missing fileUrl in payload');
     }
@@ -34,7 +33,6 @@ export const sendMedicalFile = async ({ fields }) => {
 export const fetchUserData = async (userId) => {
     const url = config.n8n.fetch;
     if (!url) throw new Error('N8N fetch webhook URL not configured');
-    // send POST with userId so n8n can filter results
     const r = await axios.post(url, { userId }, { timeout: 15000 });
     return r.data;
 };
