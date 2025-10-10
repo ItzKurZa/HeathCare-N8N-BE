@@ -11,13 +11,17 @@ export const submitBooking = async (req, res, next) => {
   }
 };
 
-export const getDepartmentsAndDoctors = async (res, next) => {
+export const getDepartmentsAndDoctors = async (req, res, next) => {
   try {
     const { departments, doctors } = await getDepartmentsAndDoctorsService();
     res.status(200).json({ success: true, departments, doctors });
   } catch (err) {
     console.error('Error in controller:', err);
-    next(err);
+    if (next) {
+      next(err);
+    } else {
+      res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
   }
 };
 
