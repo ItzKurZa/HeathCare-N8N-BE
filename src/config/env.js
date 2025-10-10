@@ -9,6 +9,7 @@ export const config = {
         medical: process.env.N8N_WEBHOOK_MEDICAL_UPLOAD,
         fetch: process.env.N8N_WEBHOOK_FETCH,
         chatSend: process.env.N8N_WEBHOOK_CHAT_SEND,
+        departmentsDoctors: process.env.N8N_WEBHOOK_DEPARTMENTS_DOCTORS,
     },
     firebase: {
         serviceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
