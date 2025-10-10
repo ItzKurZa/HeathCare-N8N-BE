@@ -21,8 +21,6 @@ export const createUser = async ({ email, password, fullname, phone, cccd }) => 
         createdAt: new Date(),
     };
 
-    console.log('Created user:', userRecord.uid, userData);
-
     if (firestore) {
         await firestore.collection('users').doc(userRecord.uid).set(userData, { merge: true });
     }
