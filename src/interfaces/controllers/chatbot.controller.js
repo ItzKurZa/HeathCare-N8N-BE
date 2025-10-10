@@ -1,5 +1,4 @@
 import { sendMessageToN8n } from '../../usecases/chatbot/sendMessageToN8N.js';
-import { fetchChatHistory } from '../../usecases/chatbot/getChatHistory.js';
 
 export const sendMessage = async (req, res, next) => {
     try {

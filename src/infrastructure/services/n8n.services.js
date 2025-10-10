@@ -43,10 +43,3 @@ export const sendChatMessage = async ({ userId, message }) => {
     const r = await axios.post(url, { userId, message, timestamp: Date.now() }, { timeout: 15000 });
     return r.data;
 };
-
-export const getChatHistory = async (userId) => {
-    const url = config.n8n.chatHistory;
-    if (!url) throw new Error('N8N chat history webhook not configured');
-    const r = await axios.post(url, { userId }, { timeout: 15000 });
-    return r.data;
-};
