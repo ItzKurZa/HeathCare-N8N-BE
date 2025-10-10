@@ -22,6 +22,7 @@ export const config = {
         keyId: process.env.BACKBLAZE_KEY_ID,
         appKey: process.env.BACKBLAZE_APP_KEY,
         bucketId: process.env.BACKBLAZE_BUCKET_ID,
+        bucketName: process.env.BACKBLAZE_BUCKET_NAME,
         downloadBaseUrl: process.env.BACKBLAZE_DOWNLOAD_BASE_URL,
         isPrivateBucket: process.env.BACKBLAZE_IS_PRIVATE_BUCKET,
         tempUrlDuration: process.env.BACKBLAZE_TEMP_URL_DURATION,

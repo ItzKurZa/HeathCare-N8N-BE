@@ -9,17 +9,14 @@ export const uploadFileToBackblaze = async (file) => {
     }
 
     try {
-        // 1️⃣ Authorize
         await backblaze.authorize();
 
-        // 2️⃣ Get upload URL
         const uploadUrlResponse = await backblaze.getUploadUrl({
             bucketId: config.backblaze.bucketId,
         });
 
         const { uploadUrl, authorizationToken } = uploadUrlResponse.data;
 
-        // 3️⃣ Upload file
         const uploadResponse = await backblaze.uploadFile({
             uploadUrl,
             uploadAuthToken: authorizationToken,
@@ -29,11 +26,9 @@ export const uploadFileToBackblaze = async (file) => {
 
         const { fileName } = uploadResponse.data;
 
-        // 4️⃣ Build file URL
         let fileUrl;
 
         if (config.backblaze.isPrivateBucket === 'true') {
-            // Private bucket → tạo link tải tạm
             const validDuration = Number(config.backblaze.tempUrlDuration) || 3600; // default: 1h
 
             const authResponse = await backblaze.getDownloadAuthorization({
