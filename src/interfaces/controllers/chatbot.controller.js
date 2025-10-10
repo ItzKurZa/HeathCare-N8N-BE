@@ -10,13 +10,3 @@ export const sendMessage = async (req, res, next) => {
         next(err);
     }
 };
-
-export const getHistory = async (req, res, next) => {
-    try {
-        const { userId } = req.params;
-        const result = await fetchChatHistory({ userId });
-        res.status(200).json({ success: true, messages: result });
-    } catch (err) {
-        next(err);
-    }
-};
