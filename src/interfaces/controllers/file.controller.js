@@ -5,7 +5,7 @@ export const uploadMedical = async (req, res, next) => {
         const file = req.file;
         const fields = req.body;
         const result = await sendMedicalFileToN8nAndCloud({ fields, file });
-        res.status(200).json({ success: true, result });
+        res.status(200).json({ file: result });
     } catch (err) {
         next(err);
     }
