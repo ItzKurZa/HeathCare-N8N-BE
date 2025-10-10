@@ -10,6 +10,7 @@ export const sendMessage = async (req, res, next) => {
       ? result.messages[0].text || 'Sorry, no response from AI'
       : 'Sorry, no response from AI';
 
+    console.log('N8N response:', replyText);
     res.status(200).json({ success: true, reply: replyText });
   } catch (err) {
     next(err);
