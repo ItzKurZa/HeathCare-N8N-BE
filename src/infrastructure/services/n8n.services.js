@@ -1,5 +1,4 @@
 import axios from 'axios';
-import FormData from 'form-data';
 import { config } from '../../config/env.js';
 
 export const sendBooking = async (bookingData) => {
@@ -8,9 +7,6 @@ export const sendBooking = async (bookingData) => {
     const r = await axios.post(url, bookingData, { timeout: 15000 });
     return r.data;
 };
-
-import axios from 'axios';
-import { config } from '../../config/env.js';
 
 export const sendMedicalFile = async ({ fields }) => {
     const url = config.n8n.medical;
