@@ -65,6 +65,9 @@ export const fetchDepartmentsAndDoctors = async () => {
             names.map((name) => ({ name, department_id: dept }))
         );
 
+        console.log('✅ Parsed departments:', departments);
+        console.log('✅ Parsed doctors:', doctors);
+
         return { departments, doctors };
     } catch (err) {
         if (err.response) {
