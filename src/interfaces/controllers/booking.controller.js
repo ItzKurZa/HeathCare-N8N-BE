@@ -14,6 +14,7 @@ export const submitBooking = async (req, res, next) => {
 export const getDepartmentsAndDoctors = async (req, res, next) => {
   try {
     const { departments, doctors } = await getDepartmentsAndDoctorsService();
+    console.log('Controller received departments and doctors:', { departments, doctors });
     res.status(200).json({ success: true, departments, doctors });
   } catch (err) {
     console.error('Error in controller:', err);
