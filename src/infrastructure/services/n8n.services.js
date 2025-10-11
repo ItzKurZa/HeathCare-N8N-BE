@@ -58,8 +58,7 @@ export const fetchDepartmentsAndDoctors = async () => {
         console.log('✅ Response headers:', r.headers);
         console.log('✅ Response data:', JSON.stringify(r.data));
 
-        const data = Array.isArray(r.data) && r.data[0] ? r.data[0] : { departments: [], doctorsByDepartment: {} };
-        const { departments = [], doctorsByDepartment = {} } = data;
+        const { departments = [], doctorsByDepartment = {} } = r.data || {};
 
         const doctors = Object.entries(doctorsByDepartment).flatMap(([dept, names]) =>
             names.map((name) => ({ name, department_id: dept }))
@@ -79,3 +78,4 @@ export const fetchDepartmentsAndDoctors = async () => {
         return { departments: [], doctors: [] };
     }
 };
+
