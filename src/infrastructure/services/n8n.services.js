@@ -56,7 +56,7 @@ export const fetchDepartmentsAndDoctors = async () => {
 
         console.log('✅ Response status:', r.status);
         console.log('✅ Response headers:', r.headers);
-        console.log('✅ Response data (first 500 chars):', JSON.stringify(r.data).substring(0, 500));
+        console.log('✅ Response data:', JSON.stringify(r.data));
 
         const data = Array.isArray(r.data) && r.data[0] ? r.data[0] : { departments: [], doctorsByDepartment: {} };
         const { departments = [], doctorsByDepartment = {} } = data;
