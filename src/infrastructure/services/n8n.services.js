@@ -48,24 +48,14 @@ export const fetchDepartmentsAndDoctors = async () => {
     const url = config.n8n.departmentsDoctors;
     if (!url) throw new Error('N8N departments/doctors webhook URL not configured');
 
-    console.log('🔹 Fetching departments/doctors from N8N...');
-    console.log('🔹 Using URL:', url);
-
     try {
         const r = await axios.get(url, { timeout: 60000 });
-
-        console.log('✅ Response status:', r.status);
-        console.log('✅ Response headers:', r.headers);
-        console.log('✅ Response data:', JSON.stringify(r.data));
 
         const { departments = [], doctorsByDepartment = {} } = r.data || {};
 
         const doctors = Object.entries(doctorsByDepartment).flatMap(([dept, names]) =>
             names.map((name) => ({ name, department_id: dept }))
         );
-
-        console.log('✅ Parsed departments:', departments);
-        console.log('✅ Parsed doctors:', doctors);
 
         return { departments, doctors };
     } catch (err) {
