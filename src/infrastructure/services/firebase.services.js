@@ -121,37 +121,82 @@ const resolveStartTimeUTC = (payload) => {
   throw new Error('Missing "startTimeLocal" or "startTimeUTC"');
 };
 
-export const processBookingService = async (payload) => {
-  if (!firestore) {
-    throw new Error('Firestore not initialized');
+
+// Convert 09:30 AM → 09:30, 07:15 PM → 19:15
+function convert12To24(t) {
+  const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!m) throw new Error(`Invalid appointment_time format: "${t}"`);
+
+  let [, hh, mm, ap] = m;
+  let h = parseInt(hh, 10);
+
+  ap = ap.toUpperCase();
+  if (ap === 'PM' && h < 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+
+  return `${String(h).padStart(2, '0')}:${mm}`;
+}
+
+// Build startTimeLocal = "YYYY-MM-DD HH:mm"
+function buildStartTimeLocal(b) {
+  const direct = sanitize(b.startTimeLocal);
+  if (direct) return direct;
+
+  const date = sanitize(b.appointment_date);
+  const time12 = sanitize(b.appointment_time);
+
+  if (!date || !time12) {
+    throw new Error('Missing "appointment_date" or "appointment_time"');
   }
+
+  const time24 = convert12To24(time12);
+  return `${date} ${time24}`;
+}
+
+// Convert local time (VN) → UTC
+function localVNToUTC(localStr) {
+  const [date, time] = localStr.trim().split(' ');
+  const [y, m, d] = date.split('-').map(Number);
+  const [hh, mm] = time.split(':').map(Number);
+
+  // VN = UTC +7
+  return new Date(Date.UTC(y, m - 1, d, hh - 7, mm, 0, 0)).toISOString();
+}
+
+export const processBookingService = async (payload) => {
+  if (!firestore) throw new Error('Firestore not initialized');
 
   const b = payload || {};
 
   const id = String(b.id || uuid());
   const submissionId = String(
-    b.submissionId || Math.floor(100 + Math.random() * 900) 
+    b.submissionId || Math.floor(100 + Math.random() * 900)
   );
 
-  const action = (b.action || 'create').toString().toLowerCase();
+  const action = (b.action || 'create').toLowerCase();
 
   const notify = (() => {
-    const x = sanitize(b.notify).toLowerCase();
-    if (x === 'email' || x === 'sms' || x === 'both') return x;
-    return 'email';
+    const v = sanitize(b.notify).toLowerCase();
+    return ['email', 'sms', 'both'].includes(v) ? v : 'email';
   })();
 
   const nowISO = () => new Date().toISOString();
 
+  // FE gửi snake_case → map sang camelCase
+  const fullName = sanitize(b.fullName || b.full_name);
+  const doctor = sanitize(b.doctor || b.doctor_name);
+  const userId = sanitize(b.userId || b.user_id);
+
   const baseData = {
-    __keyValue: id, 
+    __keyValue: id,
     id,
     submissionId,
-    fullName: sanitize(b.fullName),
+    userId,
+    fullName,
     phone: sanitize(b.phone),
     email: sanitize(b.email),
     department: sanitize(b.department),
-    doctor: sanitize(b.doctor),
+    doctor,
     note: sanitize(b.note),
     notify,
     updatedAtUTC: nowISO(),
@@ -165,43 +210,40 @@ export const processBookingService = async (payload) => {
     bookingData.reminderAtUTC = '';
     bookingData.reminderSentAtUTC = '';
 
-    console.log(
-      `[booking] cancel id=${id} submissionId=${submissionId}`
-    );
+    console.log(`[booking] cancel id=${id} submissionId=${submissionId}`);
   } else {
-    const startTimeUTC = resolveStartTimeUTC(b);
-    const startTimeLocal = sanitize(b.startTimeLocal);
+    // 👉 Build + Convert start time
+    const startTimeLocal = buildStartTimeLocal(b);
+    const startTimeUTC = localVNToUTC(startTimeLocal);
 
+    bookingData.startTimeLocal = startTimeLocal;
     bookingData.startTimeUTC = startTimeUTC;
-    if (startTimeLocal) bookingData.startTimeLocal = startTimeLocal;
-
-    const reminderAt = new Date(
-      new Date(startTimeUTC).getTime() - REMINDER_BEFORE_MIN * 60 * 1000
-    );
-    bookingData.reminderAtUTC = reminderAt.toISOString();
 
     bookingData.endTimeUTC = '';
     bookingData.status = 'pending';
     bookingData.reminderSentAtUTC = '';
 
-    const createdAtUTC = sanitize(b.createdAtUTC);
-    if (action === 'create' && !createdAtUTC) {
-      bookingData.createdAtUTC = nowISO();
-    } else if (createdAtUTC) {
-      bookingData.createdAtUTC = createdAtUTC;
-    }
+    // Reminder (2 giờ trước)
+    const reminderAt = new Date(
+      new Date(startTimeUTC).getTime() - REMINDER_BEFORE_MIN * 60 * 1000
+    );
+    bookingData.reminderAtUTC = reminderAt.toISOString();
+
+    // createdAt
+    const createdAt = sanitize(b.createdAtUTC);
+    bookingData.createdAtUTC = createdAt || nowISO();
 
     console.log(
-      `[booking] ${action} id=${id} submissionId=${submissionId} startUTC=${startTimeUTC} reminderAtUTC=${bookingData.reminderAtUTC}`
+      `[booking] ${action} id=${id} submissionId=${submissionId} startLocal=${startTimeLocal} startUTC=${startTimeUTC}`
     );
   }
-  await firestore
-    .collection('appointments')
-    .doc(id)
-    .set(bookingData, { merge: true });
-
+  const res = await firestore
+  .collection('appointments')
+  .doc(id)
+  .set(bookingData, { merge: true });
+  console.log('Firestore write result:', res);
   return bookingData;
-};
+}
 
 const normalizeCell = (value) => {
   if (typeof value !== 'string') return '';

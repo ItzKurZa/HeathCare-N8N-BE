@@ -1,8 +1,8 @@
 import { sendBooking } from '../../infrastructure/services/n8n.services.js';
 import { requireFields } from '../../utils/validate.js';
 
-export const sendBookingToN8n = async (bookingData) => {
-    const requiredFields = ['user_id'];
+export const sendBookingToN8N = async (bookingData) => {
+    const requiredFields = ['userId'];
 
     requireFields(bookingData, requiredFields);
 

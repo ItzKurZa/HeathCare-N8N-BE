@@ -4,7 +4,7 @@ export const requireFields = (obj, fields) => {
 };
 
 
-function toE164(phone) {
+export function toE164(phone) {
   if (!phone) return null;
 
   // Xóa khoảng trắng, dấu chấm, gạch ngang
