@@ -296,3 +296,50 @@ export const fetchDepartmentsAndDoctors = async () => {
     return { departments: [], doctors: [] };
   }
 };
+
+export const markRemindersSentService = async (ids = []) => {
+  if (!Array.isArray(ids) || ids.length === 0) return;
+
+  const nowISO = new Date().toISOString();
+  const batch = firestore.batch();
+
+  ids.forEach((id) => {
+    const ref = firestore.collection('appointments').doc(id);
+    batch.update(ref, {
+      reminderSentAtUTC: nowISO,
+      updatedAtUTC: nowISO,
+    });
+  });
+
+  await batch.commit();
+  return { updated: ids.length, reminderSentAtUTC: nowISO };
+};
+
+export const getRemindersDueService = async (windowMinutes = 600) => {
+  const now = new Date();
+  const nowISO = now.toISOString();
+  const fromISO = new Date(
+    now.getTime() - windowMinutes * 60 * 1000
+  ).toISOString();
+
+  const snap = await firestore
+    .collection('appointments')
+    .where('reminderAtUTC', '>=', fromISO)
+    .where('reminderAtUTC', '<=', nowISO)
+    .where('status', '==', 'pending')
+    .get();
+
+  const items = [];
+  snap.forEach((doc) => {
+    const data = doc.data();
+    if (data.reminderSentAtUTC?.trim()) return;
+
+    items.push({
+      id: doc.id,
+      ...data,
+    });
+  });
+
+  return { now: nowISO, items };
+};
+

@@ -1,7 +1,7 @@
 import { sendBookingToN8N } from '../../usecases/booking/sendBookingToN8N.js';
 import { fetchProfileData } from '../../usecases/booking/fetchBookingData.js';
 import { getDepartmentsAndDoctorsService } from '../../usecases/booking/getDepartmentsAndDoctors.js';
-import { processBookingService } from '../../infrastructure/services/firebase.services.js';
+import { processBookingService, markRemindersSentService, getRemindersDueService } from '../../infrastructure/services/firebase.services.js';
 
 export const submitBooking = async (req, res, next) => {
   try {
@@ -52,6 +52,32 @@ export const getProfileData = async (req, res, next) => {
     const { userId } = req.params;
     const result = await fetchProfileData({ userId });
     res.status(200).json({ success: true, result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// đánh dấu nhắc nhở đã gửi
+export const markRemindersSent = async (req, res, next) => {
+  try {
+    const { ids } = req.body; // [id1, id2, ...]
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, error: 'Invalid or missing ids array' });
+    }
+    const result = await markRemindersSentService(ids || []);
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+};
+// lấy danh sách nhắc nhở sắp tới
+export const getRemindersDue = async (req, res, next) => {
+  try {
+    console.log('Received request to get reminders due with query:', req.query);
+    const windowMinutes = Number(req.query.windowMinutes ?? 600); // mặc định 10 tiếng
+    const result = await getRemindersDueService(windowMinutes);
+
+    return res.json(result.items);
   } catch (err) {
     next(err);
   }
