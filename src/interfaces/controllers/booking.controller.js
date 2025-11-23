@@ -9,17 +9,16 @@ export const submitBooking = async (req, res, next) => {
     let notifyOk = false;
     let notifyError = null;
      try {
-      const n8nResult = await sendBookingToN8N(booking);
+       await sendBookingToN8N(booking);
       notifyOk = true;
-      console.log('✅ N8N notify result:', n8nResult);
     } catch (err) {
       notifyOk = false;
       notifyError = err.message || 'Send notification failed';
-      console.error('❌ Error sending booking to N8N:', err);
     }
 
     return res.json({
       success: true,
+      message: 'Booking processed successfully',
       id: booking.id,
       submissionId: booking.submissionId,
       data: booking,
