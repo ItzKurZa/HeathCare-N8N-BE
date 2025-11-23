@@ -1,11 +1,18 @@
 import { sendBookingToN8n } from '../../usecases/booking/sendBookingToN8N.js';
 import { fetchProfileData } from '../../usecases/booking/fetchBookingData.js';
 import { getDepartmentsAndDoctorsService } from '../../usecases/booking/getDepartmentsAndDoctors.js';
+import { processBookingService } from '../../infrastructure/services/firebase.services.js';
 
 export const submitBooking = async (req, res, next) => {
   try {
-    const result = await sendBookingToN8n(req.body);
-    res.status(200).json({ success: true, result });
+    const booking = await processBookingService(req.body); 
+
+    await sendNotificationToN8N(booking);
+    
+    res.status(200).json({
+      success: true,
+      data: booking,
+    });
   } catch (err) {
     next(err);
   }
