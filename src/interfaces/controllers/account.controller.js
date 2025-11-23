@@ -6,6 +6,13 @@ import { signOutAccount } from '../../usecases/account/signOut.js';
 export const signup = async (req, res, next) => {
     try {
         const { email, password, fullname, phone, cccd } = req.body;
+
+        if (!email || !password) {
+            const err = new Error("Email and password are required");
+            err.statusCode = 400;
+            throw err;
+        }
+
         const result = await createAccount({ email, password, fullname, phone, cccd });
         res.status(201).json({ success: true, ...result });
     } catch (err) {
@@ -16,6 +23,13 @@ export const signup = async (req, res, next) => {
 export const signin = async (req, res, next) => {
     try {
         const { email, password } = req.body;
+
+        if (!email || !password) {
+            const err = new Error("Email and password are required");
+            err.statusCode = 400;
+            throw err;
+        }
+
         const result = await signInAccount({ email, password });
         res.status(200).json({ success: true, auth: result });
     } catch (err) {
@@ -26,7 +40,12 @@ export const signin = async (req, res, next) => {
 export const getProfile = async (req, res, next) => {
     try {
         const uid = req.user?.uid;
-        if (!uid) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+        if (!uid) {
+            const err = new Error("Unauthorized");
+            err.statusCode = 401;
+            throw err;
+        }
 
         const profile = await getUserProfileData({ uid });
         res.status(200).json({ success: true, profile });
@@ -38,7 +57,12 @@ export const getProfile = async (req, res, next) => {
 export const signOut = async (req, res, next) => {
     try {
         const uid = req.user?.uid;
-        if (!uid) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+        if (!uid) {
+            const err = new Error("Unauthorized");
+            err.statusCode = 401;
+            throw err;
+        }
 
         const result = await signOutAccount(uid);
         res.status(200).json({ success: true, ...result });
