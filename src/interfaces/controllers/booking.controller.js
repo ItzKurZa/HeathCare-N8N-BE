@@ -1,7 +1,15 @@
 import { sendBookingToN8N } from '../../usecases/booking/sendBookingToN8N.js';
 import { fetchProfileData } from '../../usecases/booking/fetchBookingData.js';
 import { getDepartmentsAndDoctorsService } from '../../usecases/booking/getDepartmentsAndDoctors.js';
-import { processBookingService, markRemindersSentService, getRemindersDueService } from '../../infrastructure/services/firebase.services.js';
+import { 
+  processBookingService, 
+  markRemindersSentService, 
+  getRemindersDueService,
+  getRecentBookingsService
+
+ } from '../../infrastructure/services/firebase.services.js';
+
+import { requireFields } from '../../utils/validate.js';
 
 export const submitBooking = async (req, res, next) => {
   try {
@@ -76,8 +84,31 @@ export const getRemindersDue = async (req, res, next) => {
     console.log('Received request to get reminders due with query:', req.query);
     const windowMinutes = Number(req.query.windowMinutes ?? 600); // mặc định 10 tiếng
     const result = await getRemindersDueService(windowMinutes);
-
     return res.json(result.items);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getRecentBookings = async (req, res, next) => {
+  try {
+    const userId = String(req.query.userId || '').trim(); // có thể cho phép rỗng (admin xem tất cả)
+    const page = Number(req.query.page || '1');
+    const pageSize = Number(req.query.pageSize || '10');
+
+    // Nếu API chỉ dành cho user → bắt buộc userId
+    // requireFields({ userId }, ['userId']);
+
+    const result = await getRecentBookingsService({
+      userId: userId || undefined,
+      page,
+      pageSize,
+    });
+
+    return res.json({
+      success: true,
+      data: result,
+    });
   } catch (err) {
     next(err);
   }
