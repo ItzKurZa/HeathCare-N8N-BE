@@ -308,6 +308,7 @@ export const markRemindersSentService = async (ids = []) => {
     batch.update(ref, {
       reminderSentAtUTC: nowISO,
       updatedAtUTC: nowISO,
+      status: 'reminded',
     });
   });
 
@@ -343,3 +344,52 @@ export const getRemindersDueService = async (windowMinutes = 600) => {
   return { now: nowISO, items };
 };
 
+
+export const getRecentBookingsService = async ({
+  userId,
+  page = 1,
+  pageSize = 10,
+}) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  // Chặn page / pageSize bậy bạ
+  const safePage = Number.isFinite(page) && page > 0 ? page : 1;
+  const safePageSizeRaw =
+    Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 10;
+  const safePageSize = Math.min(safePageSizeRaw, 50); // limit tối đa 50/ trang
+
+  const offset = (safePage - 1) * safePageSize;
+
+  // Query: theo userId (nếu có), sort theo createdAtUTC DESC
+  // => có thể sẽ cần composite index: userId + createdAtUTC
+  let query = firestore
+    .collection('appointments')
+    .orderBy('createdAtUTC', 'desc');
+
+  if (userId) {
+    query = query.where('userId', '==', userId);
+  }
+
+  // Lấy thêm 1 record để biết còn trang sau không
+  const snap = await query.offset(offset).limit(safePageSize + 1).get();
+
+  const items = [];
+  snap.forEach((doc) => {
+    items.push({
+      id: doc.id,
+      ...doc.data(),
+    });
+  });
+
+  const hasMore = items.length > safePageSize;
+  if (hasMore) {
+    items.pop(); // bỏ bớt record thứ (pageSize + 1)
+  }
+
+  return {
+    page: safePage,
+    pageSize: safePageSize,
+    hasMore,
+    items,
+  };
+};
