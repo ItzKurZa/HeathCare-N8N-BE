@@ -12,13 +12,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.25.0",
+    "@sendgrid/mail": "^8.1.4",
     "axios": "^1.12.2",
     "backblaze-b2": "^1.7.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "firebase-admin": "^13.5.0",
-    "multer": "^2.0.2"
+    "moment": "^2.30.1",
+    "multer": "^2.0.2",
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

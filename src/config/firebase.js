@@ -20,17 +20,25 @@ if (config.firebase.serviceAccountJson) {
 
 if (serviceAccount) {
     if (!admin.apps.length) {
-        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+        admin.initializeApp({ 
+            credential: admin.credential.cert(serviceAccount),
+            databaseURL: config.firebase.databaseURL || `https://${config.firebase.projectId}.firebaseio.com`
+        });
         initialized = true;
     }
 }
 
 export const firebaseAdmin = admin;
 export const firestore = initialized ? admin.firestore() : null;
+export const realtimeDb = initialized ? admin.database() : null;
 
 if (firestore) {
     firestore.settings({ ignoreUndefinedProperties: true });
     console.log('🔥 Firestore initialized with ignoreUndefinedProperties = true');
 } else {
     console.warn('⚠️ Firestore not initialized — check your Firebase credentials');
+}
+
+if (realtimeDb) {
+    console.log('🔥 Realtime Database initialized');
 }
