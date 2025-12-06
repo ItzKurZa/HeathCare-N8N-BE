@@ -156,6 +156,90 @@ router.get('/', async (req, res, next) => {
 });
 
 /**
+ * GET /api/alerts/list
+ * Get alerts list for Dashboard CSKH
+ */
+router.get('/list', async (req, res, next) => {
+  try {
+    const { limit = 20, resolved } = req.query;
+
+    let query = db.collection('alerts').orderBy('createdAt', 'desc');
+
+    // Filter by resolved status if specified
+    if (resolved === 'true') {
+      query = query.where('resolved', '==', true);
+    } else if (resolved === 'false') {
+      query = query.where('resolved', '==', false);
+    }
+
+    query = query.limit(parseInt(limit));
+
+    const snapshot = await query.get();
+    const alerts = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      alerts.push({
+        id: doc.id,
+        type: data.type,
+        severity: data.severity || 'MEDIUM',
+        patientName: data.patientName || data.surveyData?.patientName || data.callData?.patientName || 'N/A',
+        appointmentId: data.appointmentId,
+        score: data.score || data.surveyData?.overall_score,
+        source: data.source || (data.type === 'VOICE_CALL_NEGATIVE' ? 'voice' : 'survey'),
+        resolved: data.resolved || data.status === 'resolved',
+        analysis: data.analysis || data.aiAnalysis,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt
+      });
+    });
+
+    res.json({
+      success: true,
+      data: alerts
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/alerts/:id/resolve
+ * Resolve an alert
+ */
+router.put('/:id/resolve', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { notes } = req.body;
+
+    const docRef = db.collection('alerts').doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alert not found'
+      });
+    }
+
+    await docRef.update({
+      resolved: true,
+      status: 'resolved',
+      resolvedAt: new Date(),
+      resolvedNotes: notes || null,
+      updatedAt: new Date()
+    });
+
+    res.json({
+      success: true,
+      message: 'Alert resolved successfully',
+      data: { id, resolved: true }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/alerts/:id
  * Get specific alert by ID
  */

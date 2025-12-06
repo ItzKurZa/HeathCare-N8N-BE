@@ -41,6 +41,114 @@ router.get('/', async (req, res, next) => {
 });
 
 /**
+ * GET /api/appointments/completed
+ * Get completed appointments for customer care survey
+ */
+router.get('/completed', async (req, res, next) => {
+  try {
+    const { limit = 50 } = req.query;
+
+    // Get appointments that are completed and haven't been surveyed yet
+    const snapshot = await db.collection('appointments')
+      .where('status', '==', 'completed')
+      .orderBy('created_at', 'desc')
+      .limit(parseInt(limit))
+      .get();
+
+    const appointments = [];
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      appointments.push({
+        id: doc.id,
+        bookingId: data.bookingId || doc.id,
+        patientName: data.patientName || data.fullName || 'N/A',
+        phone: data.phone || data.patientPhone || 'N/A',
+        email: data.email || data.patientEmail,
+        doctorName: data.doctorName || data.doctor || 'N/A',
+        appointmentDate: data.appointmentDate || data.startTimeLocal?.toDate()?.toISOString() || data.created_at?.toDate()?.toISOString(),
+        status: data.status,
+        survey_completed: data.survey_completed || false
+      });
+    });
+
+    res.json({
+      success: true,
+      data: appointments,
+      total: appointments.length
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/appointments/lookup
+ * Lookup appointment by phone number - for customer care survey
+ */
+router.get('/lookup', async (req, res, next) => {
+  try {
+    const { phone } = req.query;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Vui lòng nhập số điện thoại'
+      });
+    }
+
+    // Search in appointments collection by phone (without orderBy to avoid index requirement)
+    const snapshot = await db.collection('appointments')
+      .where('phone', '==', phone)
+      .limit(10)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({
+        success: false,
+        error: 'Không tìm thấy lịch hẹn với số điện thoại này'
+      });
+    }
+
+    // Get the most recent appointment
+    let latestDoc = null;
+    let latestDate = null;
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const createdAt = data.createdAt?.toDate?.() || new Date(0);
+      if (!latestDate || createdAt > latestDate) {
+        latestDate = createdAt;
+        latestDoc = { id: doc.id, ...data };
+      }
+    });
+
+    const data = latestDoc;
+
+    const appointmentInfo = {
+      id: data.id,
+      bookingId: data.bookingId || data.id,
+      patientName: data.patientName || 'N/A',
+      phone: data.phone,
+      email: data.email || '',
+      doctorName: data.doctorName || 'N/A',
+      doctorSpecialty: data.doctorSpecialty || '',
+      appointmentDate: data.appointmentDate || '',
+      timeSlot: data.timeSlot || '',
+      status: data.status || 'unknown'
+    };
+
+    res.json({
+      success: true,
+      data: appointmentInfo
+    });
+  } catch (error) {
+    console.error('Lookup error:', error);
+    next(error);
+  }
+});
+
+/**
  * GET /api/appointments/need-voice-call
  * Get appointments that need follow-up voice calls
  * Criteria: survey submitted with score < 7, not called yet

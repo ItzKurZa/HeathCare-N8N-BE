@@ -2,13 +2,166 @@ import express from 'express';
 import { firestore } from '../../config/firebase.js';
 import aiAnalyzer from '../../infrastructure/services/aiAnalyzer.services.js';
 import emailService from '../../infrastructure/services/email.services.js';
+import ExcelJS from 'exceljs';
 import { 
     handleVoiceSurveyWebhook, 
     initiateVoiceSurvey,
-    getVoiceSurveyStatus 
+    getVoiceSurveyStatus,
+    getDashboardStats,
+    getRecentSurveys
 } from '../controllers/survey.controller.js';
 
 const router = express.Router();
+
+// Dashboard API endpoints
+router.get('/stats', getDashboardStats);
+router.get('/recent', getRecentSurveys);
+
+/**
+ * GET /api/surveys/export
+ * Export surveys to Excel file (supports Vietnamese)
+ */
+router.get('/export', async (req, res) => {
+    try {
+        // Fetch surveys from Firestore (without orderBy to avoid index issues)
+        const surveysSnapshot = await firestore.collection('surveys').limit(100).get();
+        
+        const surveys = [];
+        surveysSnapshot.forEach(doc => {
+            surveys.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Sort by submittedAt in memory
+        surveys.sort((a, b) => {
+            const dateA = a.submittedAt?.toDate?.() || new Date(a.submittedAt) || new Date(0);
+            const dateB = b.submittedAt?.toDate?.() || new Date(b.submittedAt) || new Date(0);
+            return dateB - dateA;
+        });
+
+        // Create Excel workbook
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Healthcare CSKH System';
+        workbook.created = new Date();
+
+        const worksheet = workbook.addWorksheet('Khảo sát bệnh nhân');
+
+        // Title row
+        worksheet.mergeCells('A1:K1');
+        const titleCell = worksheet.getCell('A1');
+        titleCell.value = 'BÁO CÁO KHẢO SÁT BỆNH NHÂN';
+        titleCell.font = { size: 18, bold: true, color: { argb: '2563EB' } };
+        titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        worksheet.getRow(1).height = 30;
+
+        // Info row
+        worksheet.mergeCells('A2:K2');
+        const infoCell = worksheet.getCell('A2');
+        infoCell.value = `Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} | Tổng số khảo sát: ${surveys.length}`;
+        infoCell.alignment = { horizontal: 'center' };
+        worksheet.getRow(2).height = 20;
+
+        // Header row
+        const headerRow = worksheet.getRow(4);
+        const headers = [
+            'STT', 'Tên bệnh nhân', 'SĐT', 'Email', 'Ngày khảo sát',
+            'NPS (0-10)', 'CSAT (1-5)', 'Cơ sở vật chất (1-5)',
+            'Thời gian chờ', 'Đánh giá nhân viên', 'Nhận xét'
+        ];
+        headerRow.values = headers;
+        headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+        headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '2563EB' }
+        };
+        headerRow.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        headerRow.height = 25;
+
+        // Set column widths
+        worksheet.columns = [
+            { width: 6 },   // STT
+            { width: 25 },  // Tên
+            { width: 15 },  // SĐT
+            { width: 28 },  // Email
+            { width: 15 },  // Ngày
+            { width: 12 },  // NPS
+            { width: 12 },  // CSAT
+            { width: 18 },  // Cơ sở
+            { width: 15 },  // Thời gian chờ
+            { width: 35 },  // Đánh giá nhân viên
+            { width: 40 },  // Nhận xét
+        ];
+
+        // Add data rows
+        surveys.forEach((survey, index) => {
+            const submittedDate = survey.submittedAt?.toDate?.() 
+                ? survey.submittedAt.toDate().toLocaleDateString('vi-VN')
+                : survey.submittedAt 
+                    ? new Date(survey.submittedAt).toLocaleDateString('vi-VN')
+                    : 'N/A';
+
+            const staffRating = [
+                survey.staff_doctor ? `Bác sĩ: ${survey.staff_doctor}` : null,
+                survey.staff_reception ? `Lễ tân: ${survey.staff_reception}` : null,
+                survey.staff_nurse ? `Y tá: ${survey.staff_nurse}` : null
+            ].filter(Boolean).join(' | ') || 'N/A';
+
+            const row = worksheet.addRow([
+                index + 1,
+                survey.patientName || 'N/A',
+                survey.phone || 'N/A',
+                survey.email || 'N/A',
+                submittedDate,
+                survey.nps ?? 'N/A',
+                survey.csat ?? 'N/A',
+                survey.facility ?? 'N/A',
+                survey.waiting_time || 'N/A',
+                staffRating,
+                survey.comment || ''
+            ]);
+
+            // Alternate row colors
+            if (index % 2 === 0) {
+                row.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'F3F4F6' }
+                };
+            }
+            row.alignment = { vertical: 'middle', wrapText: true };
+        });
+
+        // Add borders to all cells
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber >= 4) {
+                row.eachCell((cell) => {
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                });
+            }
+        });
+
+        // Set response headers for Excel download
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=bao-cao-khao-sat.xlsx');
+
+        // Write to response
+        await workbook.xlsx.write(res);
+        res.end();
+
+    } catch (error) {
+        console.error('Error exporting surveys to Excel:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to export surveys',
+            details: error.message
+        });
+    }
+});
 
 /**
  * POST /api/surveys/submit

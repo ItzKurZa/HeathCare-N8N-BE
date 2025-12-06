@@ -8,7 +8,7 @@
         }
       },
       "id": "schedule-survey",
-      "name": "⏰ Schedule Survey Send",
+      "name": "Schedule Survey Send",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [240, 300]
@@ -16,11 +16,11 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.BACKEND_URL }}/api/appointments?status=COMPLETED&limit=100",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/appointments?status=COMPLETED&limit=100",
         "options": {}
       },
       "id": "get-appointments",
-      "name": "🔍 Get Completed Appointments",
+      "name": "Get Completed Appointments",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [460, 300]
@@ -30,7 +30,7 @@
         "jsCode": "const appointments = $input.first().json.data || [];\nconst items = [];\nconst twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);\n\nconsole.log(`Processing ${appointments.length} appointments...`);\n\nfor (const apt of appointments) {\n  const appointmentTime = new Date(apt.startTimeLocal);\n  if (!apt.survey_sent && appointmentTime <= twentyFourHoursAgo) {\n    items.push({ json: apt });\n    console.log(`✅ ${apt.patientName} needs survey`);\n  }\n}\n\nconsole.log(`Found ${items.length} appointments needing surveys`);\nreturn items;"
       },
       "id": "filter-surveys",
-      "name": "🎯 Filter Need Survey",
+      "name": "Filter Need Survey",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [680, 300]
@@ -38,14 +38,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.BACKEND_URL }}/api/emails/send-survey",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/emails/send-survey",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"appointmentId\": \"{{ $json.id }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"fullName\": \"{{ $json.patientName }}\",\n  \"doctor\": \"{{ $json.doctor }}\"\n}",
         "options": {}
       },
       "id": "send-survey",
-      "name": "📧 Send Survey Email",
+      "name": "Send Survey Email",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [900, 300]
@@ -53,14 +53,14 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $env.BACKEND_URL }}/api/appointments/{{ $json.id }}/survey-sent",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/appointments/{{ $json.id }}/survey-sent",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"survey_sent\": true,\n  \"survey_sent_at\": \"{{ $now.toISO() }}\"\n}",
         "options": {}
       },
       "id": "update-survey-sent",
-      "name": "✅ Mark Survey Sent",
+      "name": "Mark Survey Sent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [1120, 300]
@@ -73,7 +73,7 @@
         "options": {}
       },
       "id": "webhook-survey",
-      "name": "🎤 Webhook Survey",
+      "name": "Webhook Survey",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [240, 600],
@@ -82,14 +82,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.BACKEND_URL }}/api/surveys/submit",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/surveys/submit",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
       "id": "process-survey",
-      "name": "📊 Process Survey",
+      "name": "Process Survey",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [460, 600]
@@ -106,7 +106,7 @@
         }
       },
       "id": "check-improvement",
-      "name": "❓ Needs Improvement?",
+      "name": "Needs Improvement?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [680, 600]
@@ -114,14 +114,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.BACKEND_URL }}/api/ai/analyze",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/ai/analyze",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"surveyData\": {{ JSON.stringify($json.data.data) }}\n}",
         "options": {}
       },
       "id": "ai-analyze",
-      "name": "🤖 AI Analysis",
+      "name": "AI Analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [900, 500]
@@ -129,14 +129,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.BACKEND_URL }}/api/alerts/send",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/alerts/send",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"surveyData\": {{ JSON.stringify($('📊 Process Survey').item.json.data.data) }},\n  \"aiAnalysis\": \"{{ $json.data.analysis }}\"\n}",
+        "jsonBody": "={\n  \"surveyData\": {{ JSON.stringify($('Process Survey').item.json.data.data) }},\n  \"aiAnalysis\": \"{{ $json.data.analysis }}\"\n}",
         "options": {}
       },
       "id": "send-alert",
-      "name": "🚨 Send Alert",
+      "name": "Send Alert",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [1120, 500]
@@ -148,7 +148,7 @@
         "options": {}
       },
       "id": "respond-survey",
-      "name": "✉️ Respond Survey",
+      "name": "Respond Survey",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [680, 700]
@@ -161,7 +161,7 @@
         "options": {}
       },
       "id": "webhook-voice",
-      "name": "📞 Webhook Voice",
+      "name": "Webhook Voice",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [240, 900],
@@ -172,7 +172,7 @@
         "jsCode": "const signature = $request.headers['x-elevenlabs-signature'];\nconst expected = $env.ELEVENLABS_WEBHOOK_SECRET;\n\nif (expected && signature !== expected) {\n  throw new Error('Invalid signature');\n}\n\nconsole.log('✅ Webhook validated');\nreturn [$input.all()];"
       },
       "id": "validate-voice",
-      "name": "🔐 Validate Signature",
+      "name": "Validate Signature",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [460, 900]
@@ -180,14 +180,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.BACKEND_URL }}/api/voice-calls/webhook",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/voice-calls/webhook",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
       "id": "process-voice",
-      "name": "🎙️ Process Voice",
+      "name": "Process Voice",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [680, 900]
@@ -205,7 +205,7 @@
         }
       },
       "id": "check-sentiment",
-      "name": "❓ Negative?",
+      "name": "Negative?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [900, 900]
@@ -213,14 +213,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.BACKEND_URL }}/api/alerts/voice-alert",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/alerts/voice-alert",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"callData\": {{ JSON.stringify($json.data) }}\n}",
         "options": {}
       },
       "id": "voice-alert",
-      "name": "🚨 Voice Alert",
+      "name": "Voice Alert",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [1120, 800]
@@ -232,7 +232,7 @@
         "options": {}
       },
       "id": "respond-voice",
-      "name": "✉️ Respond Voice",
+      "name": "Respond Voice",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [900, 1000]
@@ -244,7 +244,7 @@
         }
       },
       "id": "schedule-calls",
-      "name": "⏰ Schedule Calls",
+      "name": "Schedule Calls",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [240, 1200]
@@ -252,11 +252,11 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "={{ $env.BACKEND_URL }}/api/appointments/need-voice-call",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/appointments/need-voice-call",
         "options": {}
       },
       "id": "get-call-candidates",
-      "name": "🔍 Get Call Candidates",
+      "name": "Get Call Candidates",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [460, 1200]
@@ -267,7 +267,7 @@
         "options": {}
       },
       "id": "split-batches",
-      "name": "📦 Split Batches",
+      "name": "Split Batches",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [680, 1200]
@@ -275,11 +275,11 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.BACKEND_URL }}/api/voice-calls/initiate/{{ $json.id }}",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/voice-calls/initiate/{{ $json.id }}",
         "options": {}
       },
       "id": "initiate-call",
-      "name": "📞 Initiate Call",
+      "name": "Initiate Call",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [900, 1200]
@@ -290,69 +290,69 @@
         "unit": "seconds"
       },
       "id": "wait-calls",
-      "name": "⏳ Wait 5s",
+      "name": "Wait 5s",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [1120, 1200]
     }
   ],
   "connections": {
-    "⏰ Schedule Survey Send": {
-      "main": [[{"node": "🔍 Get Completed Appointments", "type": "main", "index": 0}]]
+    "Schedule Survey Send": {
+      "main": [[{"node": "Get Completed Appointments", "type": "main", "index": 0}]]
     },
-    "🔍 Get Completed Appointments": {
-      "main": [[{"node": "🎯 Filter Need Survey", "type": "main", "index": 0}]]
+    "Get Completed Appointments": {
+      "main": [[{"node": "Filter Need Survey", "type": "main", "index": 0}]]
     },
-    "🎯 Filter Need Survey": {
-      "main": [[{"node": "📧 Send Survey Email", "type": "main", "index": 0}]]
+    "Filter Need Survey": {
+      "main": [[{"node": "Send Survey Email", "type": "main", "index": 0}]]
     },
-    "📧 Send Survey Email": {
-      "main": [[{"node": "✅ Mark Survey Sent", "type": "main", "index": 0}]]
+    "Send Survey Email": {
+      "main": [[{"node": "Mark Survey Sent", "type": "main", "index": 0}]]
     },
-    "🎤 Webhook Survey": {
-      "main": [[{"node": "📊 Process Survey", "type": "main", "index": 0}]]
+    "Webhook Survey": {
+      "main": [[{"node": "Process Survey", "type": "main", "index": 0}]]
     },
-    "📊 Process Survey": {
+    "Process Survey": {
       "main": [[
-        {"node": "❓ Needs Improvement?", "type": "main", "index": 0},
-        {"node": "✉️ Respond Survey", "type": "main", "index": 0}
+        {"node": "Needs Improvement?", "type": "main", "index": 0},
+        {"node": "Respond Survey", "type": "main", "index": 0}
       ]]
     },
-    "❓ Needs Improvement?": {
-      "main": [[{"node": "🤖 AI Analysis", "type": "main", "index": 0}]]
+    "Needs Improvement?": {
+      "main": [[{"node": "AI Analysis", "type": "main", "index": 0}]]
     },
-    "🤖 AI Analysis": {
-      "main": [[{"node": "🚨 Send Alert", "type": "main", "index": 0}]]
+    "AI Analysis": {
+      "main": [[{"node": "Send Alert", "type": "main", "index": 0}]]
     },
-    "📞 Webhook Voice": {
-      "main": [[{"node": "🔐 Validate Signature", "type": "main", "index": 0}]]
+    "Webhook Voice": {
+      "main": [[{"node": "Validate Signature", "type": "main", "index": 0}]]
     },
-    "🔐 Validate Signature": {
-      "main": [[{"node": "🎙️ Process Voice", "type": "main", "index": 0}]]
+    "Validate Signature": {
+      "main": [[{"node": "Process Voice", "type": "main", "index": 0}]]
     },
-    "🎙️ Process Voice": {
+    "Process Voice": {
       "main": [[
-        {"node": "❓ Negative?", "type": "main", "index": 0},
-        {"node": "✉️ Respond Voice", "type": "main", "index": 0}
+        {"node": "Negative?", "type": "main", "index": 0},
+        {"node": "Respond Voice", "type": "main", "index": 0}
       ]]
     },
-    "❓ Negative?": {
-      "main": [[{"node": "🚨 Voice Alert", "type": "main", "index": 0}]]
+    "Negative?": {
+      "main": [[{"node": "Voice Alert", "type": "main", "index": 0}]]
     },
-    "⏰ Schedule Calls": {
-      "main": [[{"node": "🔍 Get Call Candidates", "type": "main", "index": 0}]]
+    "Schedule Calls": {
+      "main": [[{"node": "Get Call Candidates", "type": "main", "index": 0}]]
     },
-    "🔍 Get Call Candidates": {
-      "main": [[{"node": "📦 Split Batches", "type": "main", "index": 0}]]
+    "Get Call Candidates": {
+      "main": [[{"node": "Split Batches", "type": "main", "index": 0}]]
     },
-    "📦 Split Batches": {
-      "main": [[{"node": "📞 Initiate Call", "type": "main", "index": 0}]]
+    "Split Batches": {
+      "main": [[{"node": "Initiate Call", "type": "main", "index": 0}]]
     },
-    "📞 Initiate Call": {
-      "main": [[{"node": "⏳ Wait 5s", "type": "main", "index": 0}]]
+    "Initiate Call": {
+      "main": [[{"node": "Wait 5s", "type": "main", "index": 0}]]
     },
-    "⏳ Wait 5s": {
-      "main": [[{"node": "📦 Split Batches", "type": "main", "index": 0}]]
+    "Wait 5s": {
+      "main": [[{"node": "Split Batches", "type": "main", "index": 0}]]
     }
   },
   "pinData": {},

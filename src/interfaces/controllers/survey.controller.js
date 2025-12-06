@@ -312,3 +312,151 @@ export const getVoiceSurveyStatus = async (req, res) => {
         });
     }
 };
+
+/**
+ * Get Dashboard Statistics
+ * GET /api/surveys/stats
+ */
+export const getDashboardStats = async (req, res) => {
+    try {
+        console.log('📊 Getting dashboard statistics...');
+
+        // Get all surveys
+        const surveysSnapshot = await firestore.collection('surveys')
+            .orderBy('submittedAt', 'desc')
+            .get();
+
+        const surveys = surveysSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        // Get all alerts
+        const alertsSnapshot = await firestore.collection('alerts')
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        const alerts = alertsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        // Get all voice calls
+        const voiceCallsSnapshot = await firestore.collection('voice_calls')
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        const voiceCalls = voiceCallsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        // Calculate statistics
+        const totalSurveys = surveys.length;
+        const completedSurveys = surveys.filter(s => s.overall_score !== undefined).length;
+        const averageScore = totalSurveys > 0 
+            ? surveys.reduce((sum, s) => sum + (s.overall_score || 0), 0) / totalSurveys 
+            : 0;
+
+        const pendingAlerts = alerts.filter(a => !a.resolved).length;
+        const resolvedAlerts = alerts.filter(a => a.resolved).length;
+
+        const totalVoiceCalls = voiceCalls.length;
+        const successVoiceCalls = voiceCalls.filter(c => 
+            c.status === 'completed' || c.status === 'ended'
+        ).length;
+
+        // Negative surveys (score < 7)
+        const negativeSurveys = surveys.filter(s => (s.overall_score || 0) < 7).length;
+
+        // Today's stats
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const todaySurveys = surveys.filter(s => {
+            const submittedAt = s.submittedAt?.toDate ? s.submittedAt.toDate() : new Date(s.submittedAt);
+            return submittedAt >= today;
+        }).length;
+
+        const todayAlerts = alerts.filter(a => {
+            const createdAt = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt);
+            return createdAt >= today;
+        }).length;
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                surveys: {
+                    total: totalSurveys,
+                    completed: completedSurveys,
+                    negative: negativeSurveys,
+                    averageScore: parseFloat(averageScore.toFixed(2)),
+                    today: todaySurveys
+                },
+                alerts: {
+                    total: alerts.length,
+                    pending: pendingAlerts,
+                    resolved: resolvedAlerts,
+                    today: todayAlerts
+                },
+                voiceCalls: {
+                    total: totalVoiceCalls,
+                    success: successVoiceCalls,
+                    successRate: totalVoiceCalls > 0 
+                        ? parseFloat((successVoiceCalls / totalVoiceCalls * 100).toFixed(1)) 
+                        : 0
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Get dashboard stats error:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Internal server error'
+        });
+    }
+};
+
+/**
+ * Get Recent Surveys
+ * GET /api/surveys/recent
+ */
+export const getRecentSurveys = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+
+        const surveysSnapshot = await firestore.collection('surveys')
+            .orderBy('submittedAt', 'desc')
+            .limit(limit)
+            .get();
+
+        const surveys = surveysSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                patientName: data.patientName,
+                appointmentId: data.appointmentId,
+                nps: data.nps,
+                csat: data.csat,
+                overall_score: data.overall_score,
+                source: data.source || 'form',
+                comment: data.comment,
+                submittedAt: data.submittedAt?.toDate ? data.submittedAt.toDate().toISOString() : data.submittedAt,
+                improvement_trigger: data.improvement_trigger
+            };
+        });
+
+        return res.status(200).json({
+            success: true,
+            data: surveys
+        });
+
+    } catch (error) {
+        console.error('❌ Get recent surveys error:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Internal server error'
+        });
+    }
+};
