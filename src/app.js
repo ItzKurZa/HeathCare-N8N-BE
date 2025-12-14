@@ -16,6 +16,7 @@ const app = express();
 const allowedOrigins = [
     config.frontendUrl, // domain thật (https://kurza.id.vn)
     "http://localhost:5173", // dev local
+    "http://localhost:5174", // dev local (alternative port)
     "https://zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3--5173--96435430.local-credentialless.webcontainer-api.io", // webcontainer
 ];
 

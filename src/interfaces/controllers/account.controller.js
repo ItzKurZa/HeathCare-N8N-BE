@@ -13,8 +13,29 @@ export const signup = async (req, res, next) => {
             throw err;
         }
 
+        // Tạo account
         const result = await createAccount({ email, password, fullname, phone, cccd });
-        res.status(201).json({ success: true, ...result });
+        
+        // Tự động đăng nhập sau khi đăng ký thành công
+        try {
+            const authResult = await signInAccount({ email, password });
+            return res.status(201).json({ 
+                success: true, 
+                message: 'Đăng ký thành công',
+                user: result,
+                auth: authResult 
+            });
+        } catch (signInError) {
+            // Nếu đăng nhập tự động thất bại, vẫn trả về user đã tạo
+            // User có thể đăng nhập thủ công sau
+            console.warn('Auto sign-in after signup failed:', signInError.message);
+            return res.status(201).json({ 
+                success: true, 
+                message: 'Đăng ký thành công. Vui lòng đăng nhập.',
+                user: result,
+                auth: null
+            });
+        }
     } catch (err) {
         next(err);
     }
