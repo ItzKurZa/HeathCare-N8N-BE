@@ -824,3 +824,131 @@ export const deleteFileService = async (fileId) => {
   await ref.delete();
   return { success: true };
 };
+
+/**
+ * Update booking từ N8N webhook callback
+ * @param {Object} payload - Payload từ N8N
+ * @param {string} payload.bookingId - ID của booking
+ * @param {string} payload.action - Action type
+ * @param {string} [payload.status] - New status (optional)
+ * @param {string} [payload.reminderSentAtUTC] - Timestamp khi reminder đã gửi
+ * @param {string} [payload.notificationMethod] - Method đã gửi (email/sms/both)
+ * @param {string} [payload.error] - Error message nếu failed
+ * @param {Object} [payload.metadata] - Additional metadata
+ */
+export const updateBookingFromN8N = async (payload) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  const { bookingId, action, status, reminderSentAtUTC, notificationMethod, error, metadata } = payload;
+
+  if (!bookingId) {
+    throw new Error('bookingId is required');
+  }
+
+  const ref = firestore.collection('appointments').doc(bookingId);
+  const doc = await ref.get();
+
+  if (!doc.exists) {
+    throw new Error('Booking not found');
+  }
+
+  const existingData = doc.data();
+  const updateData = {
+    updatedAtUTC: new Date().toISOString(),
+  };
+
+  // Xử lý theo từng action type
+  switch (action) {
+    case 'notification_sent':
+      // Notification đã gửi thành công
+      if (reminderSentAtUTC) {
+        updateData.reminderSentAtUTC = reminderSentAtUTC;
+      } else {
+        updateData.reminderSentAtUTC = new Date().toISOString();
+      }
+      
+      // Update status nếu chưa có
+      if (!existingData.status || existingData.status === 'pending') {
+        updateData.status = 'reminded';
+      }
+
+      if (notificationMethod) {
+        updateData.notificationMethod = notificationMethod;
+      }
+      break;
+
+    case 'notification_failed':
+      // Notification gửi thất bại
+      updateData.notificationError = error || 'Notification failed';
+      updateData.notificationFailedAtUTC = new Date().toISOString();
+      // Không update status, giữ nguyên để retry sau
+      break;
+
+    case 'reminder_sent':
+      // Reminder đã gửi (tương tự notification_sent)
+      if (reminderSentAtUTC) {
+        updateData.reminderSentAtUTC = reminderSentAtUTC;
+      } else {
+        updateData.reminderSentAtUTC = new Date().toISOString();
+      }
+      
+      if (!existingData.status || existingData.status === 'pending') {
+        updateData.status = 'reminded';
+      }
+      break;
+
+    case 'reminder_failed':
+      // Reminder gửi thất bại
+      updateData.reminderError = error || 'Reminder failed';
+      updateData.reminderFailedAtUTC = new Date().toISOString();
+      break;
+
+    case 'booking_confirmed':
+      // Booking được confirm tự động (từ N8N logic)
+      updateData.status = 'confirmed';
+      updateData.confirmedAtUTC = new Date().toISOString();
+      updateData.confirmedBy = 'n8n_automation';
+      break;
+
+    case 'status_update':
+      // Generic status update
+      if (status) {
+        const validStatuses = ['pending', 'confirmed', 'completed', 'canceled', 'reminded'];
+        if (validStatuses.includes(status)) {
+          updateData.status = status;
+          
+          if (status === 'confirmed' && !existingData.confirmedAtUTC) {
+            updateData.confirmedAtUTC = new Date().toISOString();
+          }
+          
+          if (status === 'completed' && !existingData.completedAtUTC) {
+            updateData.completedAtUTC = new Date().toISOString();
+          }
+        } else {
+          console.warn(`Invalid status from N8N: ${status}`);
+        }
+      }
+      break;
+
+    default:
+      console.warn(`Unknown action from N8N: ${action}`);
+  }
+
+  // Add metadata nếu có
+  if (metadata && typeof metadata === 'object') {
+    updateData.n8nMetadata = metadata;
+  }
+
+  // Update vào Firestore
+  await ref.update(updateData);
+
+  // Log update
+  console.log(`[webhook] Updated booking ${bookingId} with action: ${action}`);
+
+  // Return updated data
+  const updatedDoc = await ref.get();
+  return {
+    id: updatedDoc.id,
+    ...updatedDoc.data(),
+  };
+};
