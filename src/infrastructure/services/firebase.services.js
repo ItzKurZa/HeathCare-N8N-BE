@@ -479,10 +479,23 @@ export const updateBookingService = async (bookingId, updates) => {
   if (updateData.status !== 'canceled') {
     const newDoctor = updateData.doctor || existingData.doctor;
     const newDepartment = updateData.department || existingData.department;
-    const newStartTimeLocal = updates.appointment_date && updates.appointment_time
-      ? `${updates.appointment_date} ${convert12To24(updates.appointment_time)}`
-      : existingData.startTimeLocal;
-    const newStartTimeUTC = newStartTimeLocal
+    
+    // Tính toán newStartTimeLocal nếu có thay đổi
+    let newStartTimeLocal = existingData.startTimeLocal;
+    if (updates.appointment_date && updates.appointment_time) {
+      try {
+        newStartTimeLocal = `${updates.appointment_date} ${convert12To24(updates.appointment_time)}`;
+      } catch (err) {
+        // Nếu format không đúng, giữ nguyên thời gian cũ
+        console.warn('Invalid appointment_time format in update, keeping existing time:', err.message);
+      }
+    } else if (updates.appointment_date) {
+      // Nếu chỉ có date, giữ nguyên time
+      const existingTime = existingData.startTimeLocal ? existingData.startTimeLocal.split(' ')[1] : '09:00';
+      newStartTimeLocal = `${updates.appointment_date} ${existingTime}`;
+    }
+    
+    const newStartTimeUTC = newStartTimeLocal && newStartTimeLocal !== existingData.startTimeLocal
       ? localVNToUTC(newStartTimeLocal)
       : existingData.startTimeUTC;
 
@@ -506,7 +519,7 @@ export const updateBookingService = async (bookingId, updates) => {
       await validateBookingData(validationPayload, bookingId);
 
       // Update các field đã tính toán
-      if (timeChanged) {
+      if (timeChanged && newStartTimeLocal) {
         updateData.startTimeLocal = newStartTimeLocal;
         updateData.startTimeUTC = newStartTimeUTC;
         
