@@ -1,6 +1,7 @@
 import express from 'express';
 import { submitBooking, getProfileData } from '../controllers/booking.controller.js';
-import { getDepartmentsAndDoctors, getRemindersDue, markRemindersSent, getRecentBookings } from '../controllers/booking.controller.js';
+import { getDepartmentsAndDoctors, getRemindersDue, markRemindersSent, getRecentBookings, getUserBookings, updateBooking } from '../controllers/booking.controller.js';
+import { requireAuth } from '../../infrastructure/middlewares/auth.middleware.js';
 
 const router = express.Router();
 
@@ -9,6 +10,8 @@ router.get('/departments-doctors', getDepartmentsAndDoctors);
 router.get('/reminders-due', getRemindersDue);
 router.post('/reminders/mark-sent', markRemindersSent);
 router.get('/recent', getRecentBookings);
+router.get('/user/:userId', requireAuth, getUserBookings);
+router.put('/:bookingId', requireAuth, updateBooking);
 // router.get('/:userId', getProfileData);
 
 

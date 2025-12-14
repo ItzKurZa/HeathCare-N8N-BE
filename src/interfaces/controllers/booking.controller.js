@@ -5,11 +5,43 @@ import {
   processBookingService, 
   markRemindersSentService, 
   getRemindersDueService,
-  getRecentBookingsService
+  getRecentBookingsService,
+  getUserBookingsService,
+  updateBookingService
 
  } from '../../infrastructure/services/firebase.services.js';
 
 import { requireFields } from '../../utils/validate.js';
+
+// Helper function để convert 24h format sang 12h format
+const convert24To12 = (time24) => {
+  if (!time24) return '';
+  const [hours, minutes] = time24.split(':');
+  const h = parseInt(hours, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${minutes} ${ampm}`;
+};
+
+// Helper function để transform booking data
+const transformBooking = (booking) => {
+  const time24 = booking.startTimeLocal ? booking.startTimeLocal.split(' ')[1] : '';
+  return {
+    id: booking.id,
+    user_id: booking.userId,
+    full_name: booking.fullName,
+    email: booking.email,
+    phone: booking.phone,
+    department: booking.department,
+    doctor_name: booking.doctor,
+    appointment_date: booking.startTimeLocal ? booking.startTimeLocal.split(' ')[0] : '',
+    appointment_time: convert24To12(time24),
+    reason: booking.note || 'Khám bệnh',
+    status: booking.status === 'canceled' ? 'cancelled' : booking.status,
+    notes: booking.note,
+    created_at: booking.createdAtUTC,
+  };
+};
 
 export const submitBooking = async (req, res, next) => {
   try {
@@ -24,12 +56,13 @@ export const submitBooking = async (req, res, next) => {
       notifyError = err.message || 'Send notification failed';
     }
 
+    // Transform data để match với frontend format
+    const transformedBooking = transformBooking(booking);
+
     return res.json({
       success: true,
       message: 'Booking processed successfully',
-      id: booking.id,
-      submissionId: booking.submissionId,
-      data: booking,
+      booking: transformedBooking,
       notify: {
         success: notifyOk,
         error: notifyError,
@@ -108,6 +141,42 @@ export const getRecentBookings = async (req, res, next) => {
     return res.json({
       success: true,
       data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getUserBookings = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const bookings = await getUserBookingsService(userId);
+    
+    // Transform data để match với frontend format
+    const transformedBookings = bookings.map(transformBooking);
+
+    return res.json({
+      success: true,
+      bookings: transformedBookings,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateBooking = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const updates = req.body;
+    
+    const updatedBooking = await updateBookingService(bookingId, updates);
+    
+    // Transform data để match với frontend format
+    const transformed = transformBooking(updatedBooking);
+
+    return res.json({
+      success: true,
+      booking: transformed,
     });
   } catch (err) {
     next(err);

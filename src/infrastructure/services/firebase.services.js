@@ -1,5 +1,6 @@
 import { firebaseAdmin, firestore } from '../../config/firebase.js';
 import { v4 as uuid } from 'uuid';
+import { validateBookingData } from './booking.validation.js';
 
 const formatPhoneToE164 = (phone) => {
   if (!phone) return null;
@@ -186,6 +187,8 @@ export const processBookingService = async (payload) => {
   const fullName = sanitize(b.fullName || b.full_name);
   const doctor = sanitize(b.doctor || b.doctor_name);
   const userId = sanitize(b.userId || b.user_id);
+  // Frontend có thể gửi reason hoặc notes, map sang note
+  const note = sanitize(b.note || b.notes || b.reason || '');
 
   const baseData = {
     __keyValue: id,
@@ -197,7 +200,7 @@ export const processBookingService = async (payload) => {
     email: sanitize(b.email),
     department: sanitize(b.department),
     doctor,
-    note: sanitize(b.note),
+    note,
     notify,
     updatedAtUTC: nowISO(),
   };
@@ -236,11 +239,36 @@ export const processBookingService = async (payload) => {
     console.log(
       `[booking] ${action} id=${id} submissionId=${submissionId} startLocal=${startTimeLocal} startUTC=${startTimeUTC}`
     );
+
+    // ✅ VALIDATION: Kiểm tra trước khi lưu
+    // Xác định đây là update hay create để exclude booking hiện tại
+    let excludeBookingId = null;
+    if (id && action === 'update') {
+      // Kiểm tra booking cũ có tồn tại không
+      const existingDoc = await firestore.collection('appointments').doc(id).get();
+      if (existingDoc.exists) {
+        excludeBookingId = id;
+      }
+    }
+
+    // Validate booking data
+    await validateBookingData(
+      {
+        doctor,
+        department: sanitize(b.department),
+        userId,
+        startTimeUTC,
+        startTimeLocal,
+        action,
+      },
+      excludeBookingId
+    );
   }
+
   const res = await firestore
-  .collection('appointments')
-  .doc(id)
-  .set(bookingData, { merge: true });
+    .collection('appointments')
+    .doc(id)
+    .set(bookingData, { merge: true });
   console.log('Firestore write result:', res);
   return bookingData;
 }
@@ -392,4 +420,394 @@ export const getRecentBookingsService = async ({
     hasMore,
     items,
   };
+};
+
+export const getUserBookingsService = async (userId) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+  
+  const snap = await firestore
+    .collection('appointments')
+    .where('userId', '==', userId)
+    .orderBy('createdAtUTC', 'desc')
+    .get();
+
+  const bookings = [];
+  snap.forEach((doc) => {
+    bookings.push({
+      id: doc.id,
+      ...doc.data(),
+    });
+  });
+
+  return bookings;
+};
+
+export const updateBookingService = async (bookingId, updates) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  const ref = firestore.collection('appointments').doc(bookingId);
+  const doc = await ref.get();
+
+  if (!doc.exists) {
+    throw new Error('Booking not found');
+  }
+
+  const existingData = doc.data();
+  const updateData = {
+    updatedAtUTC: new Date().toISOString(),
+  };
+
+  // Map status từ frontend format sang backend format
+  if (updates.status) {
+    updateData.status = updates.status === 'cancelled' ? 'canceled' : updates.status;
+    
+    // Nếu cancel thì set endTimeUTC (không cần validate)
+    if (updateData.status === 'canceled') {
+      updateData.endTimeUTC = new Date().toISOString();
+      updateData.reminderAtUTC = '';
+      updateData.reminderSentAtUTC = '';
+    }
+  }
+
+  // Cập nhật các field khác nếu có
+  if (updates.department) updateData.department = sanitize(updates.department);
+  if (updates.doctor_name || updates.doctor) updateData.doctor = sanitize(updates.doctor_name || updates.doctor);
+  if (updates.notes || updates.note) updateData.note = sanitize(updates.notes || updates.note);
+  if (updates.reason) updateData.note = sanitize(updates.reason);
+
+  // ✅ VALIDATION: Nếu update doctor/time và không phải cancel, cần validate
+  if (updateData.status !== 'canceled') {
+    const newDoctor = updateData.doctor || existingData.doctor;
+    const newDepartment = updateData.department || existingData.department;
+    const newStartTimeLocal = updates.appointment_date && updates.appointment_time
+      ? `${updates.appointment_date} ${convert12To24(updates.appointment_time)}`
+      : existingData.startTimeLocal;
+    const newStartTimeUTC = newStartTimeLocal
+      ? localVNToUTC(newStartTimeLocal)
+      : existingData.startTimeUTC;
+
+    // Chỉ validate nếu có thay đổi về doctor, department, hoặc time
+    const doctorChanged = newDoctor !== existingData.doctor;
+    const departmentChanged = newDepartment !== existingData.department;
+    const timeChanged = newStartTimeUTC !== existingData.startTimeUTC;
+
+    if (doctorChanged || departmentChanged || timeChanged) {
+      // Rebuild payload để validate
+      const validationPayload = {
+        doctor: newDoctor,
+        department: newDepartment,
+        userId: existingData.userId,
+        startTimeUTC: newStartTimeUTC,
+        startTimeLocal: newStartTimeLocal,
+        action: 'update',
+      };
+
+      // Validate với excludeBookingId để tránh conflict với chính nó
+      await validateBookingData(validationPayload, bookingId);
+
+      // Update các field đã tính toán
+      if (timeChanged) {
+        updateData.startTimeLocal = newStartTimeLocal;
+        updateData.startTimeUTC = newStartTimeUTC;
+        
+        // Recalculate reminder
+        const reminderAt = new Date(
+          new Date(newStartTimeUTC).getTime() - REMINDER_BEFORE_MIN * 60 * 1000
+        );
+        updateData.reminderAtUTC = reminderAt.toISOString();
+        updateData.reminderSentAtUTC = ''; // Reset reminder sent khi đổi time
+      }
+    }
+  }
+
+  await ref.update(updateData);
+
+  const updatedDoc = await ref.get();
+  return {
+    id: updatedDoc.id,
+    ...updatedDoc.data(),
+  };
+};
+
+export const getStatisticsService = async () => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  // Lấy tất cả appointments
+  const appointmentsSnap = await firestore.collection('appointments').get();
+  
+  // Lấy tất cả users
+  const usersSnap = await firestore.collection('users').get();
+  
+  const appointments = [];
+  appointmentsSnap.forEach((doc) => {
+    appointments.push(doc.data());
+  });
+
+  const totalPatients = usersSnap.size;
+  const totalBookings = appointments.length;
+  
+  const statusCounts = {
+    pending: 0,
+    confirmed: 0,
+    completed: 0,
+    cancelled: 0,
+  };
+
+  const departmentCounts = {};
+  const dateCounts = {};
+
+  appointments.forEach((booking) => {
+    const status = booking.status === 'canceled' ? 'cancelled' : booking.status;
+    if (statusCounts.hasOwnProperty(status)) {
+      statusCounts[status]++;
+    }
+
+    if (booking.department) {
+      departmentCounts[booking.department] = (departmentCounts[booking.department] || 0) + 1;
+    }
+
+    if (booking.startTimeLocal) {
+      const date = booking.startTimeLocal.split(' ')[0];
+      dateCounts[date] = (dateCounts[date] || 0) + 1;
+    }
+  });
+
+  const bookingsByDepartment = Object.entries(departmentCounts).map(([department, count]) => ({
+    department,
+    count,
+  }));
+
+  const bookingsByDate = Object.entries(dateCounts).map(([date, count]) => ({
+    date,
+    count,
+  })).sort((a, b) => a.date.localeCompare(b.date));
+
+  return {
+    totalPatients,
+    totalBookings,
+    pendingBookings: statusCounts.pending,
+    confirmedBookings: statusCounts.confirmed,
+    completedBookings: statusCounts.completed,
+    cancelledBookings: statusCounts.cancelled,
+    bookingsByDepartment,
+    bookingsByDate,
+  };
+};
+
+export const getAllBookingsService = async (filters = {}) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  let query = firestore.collection('appointments');
+
+  // Apply filters
+  if (filters.status) {
+    const status = filters.status === 'cancelled' ? 'canceled' : filters.status;
+    query = query.where('status', '==', status);
+  }
+
+  if (filters.department) {
+    query = query.where('department', '==', filters.department);
+  }
+
+  // Note: Firestore doesn't support range queries on multiple fields easily
+  // For date filtering, we'll filter in memory if needed
+  const snap = await query.orderBy('createdAtUTC', 'desc').get();
+
+  const bookings = [];
+  snap.forEach((doc) => {
+    const data = doc.data();
+    
+    // Filter by date if provided
+    if (filters.dateFrom || filters.dateTo) {
+      if (data.startTimeLocal) {
+        const date = data.startTimeLocal.split(' ')[0];
+        if (filters.dateFrom && date < filters.dateFrom) return;
+        if (filters.dateTo && date > filters.dateTo) return;
+      } else {
+        return; // Skip if no startTimeLocal
+      }
+    }
+
+    bookings.push({
+      id: doc.id,
+      ...data,
+    });
+  });
+
+  return bookings;
+};
+
+export const updateBookingStatusService = async (bookingId, status) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  const ref = firestore.collection('appointments').doc(bookingId);
+  const doc = await ref.get();
+
+  if (!doc.exists) {
+    throw new Error('Booking not found');
+  }
+
+  const updateData = {
+    updatedAtUTC: new Date().toISOString(),
+  };
+
+  // Map status từ frontend format sang backend format
+  const backendStatus = status === 'cancelled' ? 'canceled' : status;
+  updateData.status = backendStatus;
+
+  // Nếu cancel thì set endTimeUTC
+  if (backendStatus === 'canceled') {
+    updateData.endTimeUTC = new Date().toISOString();
+    updateData.reminderAtUTC = '';
+    updateData.reminderSentAtUTC = '';
+  }
+
+  await ref.update(updateData);
+
+  const updatedDoc = await ref.get();
+  return {
+    id: updatedDoc.id,
+    ...updatedDoc.data(),
+  };
+};
+
+export const getDoctorBookingsService = async (filters) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  let query = firestore
+    .collection('appointments')
+    .where('doctor', '==', filters.doctor);
+
+  if (filters.status) {
+    const status = filters.status === 'cancelled' ? 'canceled' : filters.status;
+    query = query.where('status', '==', status);
+  }
+
+  const snap = await query.orderBy('createdAtUTC', 'desc').get();
+
+  const bookings = [];
+  snap.forEach((doc) => {
+    const data = doc.data();
+
+    // Filter by date if provided
+    if (filters.dateFrom || filters.dateTo) {
+      if (data.startTimeLocal) {
+        const date = data.startTimeLocal.split(' ')[0];
+        if (filters.dateFrom && date < filters.dateFrom) return;
+        if (filters.dateTo && date > filters.dateTo) return;
+      } else {
+        return; // Skip if no startTimeLocal
+      }
+    }
+
+    bookings.push({
+      id: doc.id,
+      ...data,
+    });
+  });
+
+  return bookings;
+};
+
+export const getDoctorScheduleService = async (doctorName, dateFrom, dateTo) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  const snap = await firestore
+    .collection('appointments')
+    .where('doctor', '==', doctorName)
+    .where('status', 'in', ['pending', 'confirmed'])
+    .orderBy('startTimeUTC', 'asc')
+    .get();
+
+  const scheduleByDate = {};
+
+  snap.forEach((doc) => {
+    const data = doc.data();
+    if (!data.startTimeLocal) return;
+
+    const date = data.startTimeLocal.split(' ')[0];
+    const time = data.startTimeLocal.split(' ')[1];
+
+    // Filter by date range
+    if (date < dateFrom || date > dateTo) return;
+
+    if (!scheduleByDate[date]) {
+      scheduleByDate[date] = [];
+    }
+
+    scheduleByDate[date].push({
+      time,
+      available: false,
+      booking_id: doc.id,
+    });
+  });
+
+  // Convert to array format
+  const schedule = Object.entries(scheduleByDate).map(([date, timeSlots]) => ({
+    id: `${doctorName}-${date}`,
+    doctor_name: doctorName,
+    date,
+    time_slots: timeSlots,
+  }));
+
+  return schedule;
+};
+
+export const updateScheduleAvailabilityService = async (doctorName, date, time, available) => {
+  // This is a placeholder - in a real system, you might want to store
+  // schedule availability separately from bookings
+  // For now, we'll just log it
+  console.log(`Updating schedule availability for ${doctorName} on ${date} at ${time} to ${available}`);
+  
+  // In a real implementation, you might:
+  // 1. Store availability in a separate collection
+  // 2. Update existing bookings if needed
+  // 3. Block new bookings for unavailable slots
+  
+  return { success: true };
+};
+
+export const saveMedicalFileMetadata = async (fileMetadata) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  await firestore
+    .collection('medical_files')
+    .doc(fileMetadata.id)
+    .set(fileMetadata, { merge: true });
+
+  return fileMetadata;
+};
+
+export const getUserFilesService = async (userId) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  const snap = await firestore
+    .collection('medical_files')
+    .where('user_id', '==', userId)
+    .orderBy('uploaded_at', 'desc')
+    .get();
+
+  const files = [];
+  snap.forEach((doc) => {
+    files.push({
+      id: doc.id,
+      ...doc.data(),
+    });
+  });
+
+  return files;
+};
+
+export const deleteFileService = async (fileId) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  const ref = firestore.collection('medical_files').doc(fileId);
+  const doc = await ref.get();
+
+  if (!doc.exists) {
+    throw new Error('File not found');
+  }
+
+  await ref.delete();
+  return { success: true };
 };
