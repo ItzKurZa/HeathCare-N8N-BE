@@ -48,7 +48,7 @@ export const submitBooking = async (req, res, next) => {
     const booking = await processBookingService(req.body); 
     let notifyOk = false;
     let notifyError = null;
-     try {
+    try {
        await sendBookingToN8N(booking);
       notifyOk = true;
     } catch (err) {

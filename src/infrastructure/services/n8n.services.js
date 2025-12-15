@@ -2,9 +2,22 @@ import axios from 'axios';
 import { config } from '../../config/env.js';
 
 export const sendBooking = async (bookingData) => {
+    console.log('Sending booking data to N8N:', bookingData);
     const url = config.n8n.booking;
     if (!url) throw new Error('N8N booking webhook URL not configured');
-    const r = await axios.post(url, bookingData, { timeout: 15000 });
+    
+    const headers = { 
+        'Content-Type': 'application/json',
+    };
+    
+    if (process.env.N8N_WEBHOOK_SECRET) {
+        headers['X-API-KEY'] = process.env.N8N_WEBHOOK_SECRET;
+    }
+    
+    const r = await axios.post(url, bookingData, { 
+        headers,
+        timeout: 15000 
+    });
     return r.data;
 };
 
