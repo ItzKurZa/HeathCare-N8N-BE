@@ -442,6 +442,61 @@ export const getUserBookingsService = async (userId) => {
   return bookings;
 };
 
+export const getBookingByIdService = async (bookingId) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  const ref = firestore.collection('appointments').doc(bookingId);
+  const doc = await ref.get();
+
+  if (!doc.exists) {
+    throw new Error('Booking not found');
+  }
+
+  return {
+    id: doc.id,
+    ...doc.data(),
+  };
+};
+
+export const checkInBookingService = async (bookingId) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  const ref = firestore.collection('appointments').doc(bookingId);
+  const doc = await ref.get();
+
+  if (!doc.exists) {
+    throw new Error('Booking not found');
+  }
+
+  const bookingData = doc.data();
+  
+  // Kiểm tra booking đã bị cancel chưa
+  if (bookingData.status === 'canceled') {
+    throw new Error('Booking đã bị hủy, không thể check-in');
+  }
+
+  // Kiểm tra booking đã check-in chưa
+  if (bookingData.checkedInAtUTC) {
+    throw new Error('Booking đã được check-in trước đó');
+  }
+
+  // Update booking với check-in timestamp
+  const updateData = {
+    checkedInAtUTC: new Date().toISOString(),
+    updatedAtUTC: new Date().toISOString(),
+    // Có thể update status thành 'checked_in' hoặc giữ nguyên
+    status: bookingData.status === 'pending' ? 'checked_in' : bookingData.status,
+  };
+
+  await ref.update(updateData);
+
+  return {
+    id: doc.id,
+    ...bookingData,
+    ...updateData,
+  };
+};
+
 export const updateBookingService = async (bookingId, updates) => {
   if (!firestore) throw new Error('Firestore not initialized');
 

@@ -7,7 +7,9 @@ import {
   getRemindersDueService,
   getRecentBookingsService,
   getUserBookingsService,
-  updateBookingService
+  updateBookingService,
+  getBookingByIdService,
+  checkInBookingService
 
  } from '../../infrastructure/services/firebase.services.js';
 
@@ -179,6 +181,61 @@ export const updateBooking = async (req, res, next) => {
       booking: transformed,
     });
   } catch (err) {
+    next(err);
+  }
+};
+
+// Get booking by ID (for check-in page)
+export const getBookingById = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const booking = await getBookingByIdService(bookingId);
+    
+    // Transform data để match với frontend format
+    const transformed = transformBooking(booking);
+
+    return res.json({
+      success: true,
+      booking: transformed,
+    });
+  } catch (err) {
+    if (err.message === 'Booking not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đặt lịch',
+      });
+    }
+    next(err);
+  }
+};
+
+// Check-in booking
+export const checkInBooking = async (req, res, next) => {
+  try {
+    const { bookingId } = req.params;
+    const checkedInBooking = await checkInBookingService(bookingId);
+    
+    // Transform data để match với frontend format
+    const transformed = transformBooking(checkedInBooking);
+
+    return res.json({
+      success: true,
+      message: 'Check-in thành công',
+      booking: transformed,
+    });
+  } catch (err) {
+    if (err.message === 'Booking not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đặt lịch',
+      });
+    }
+    if (err.message.includes('đã bị hủy') || err.message.includes('đã được check-in')) {
+      return res.status(400).json({
+        success: false,
+        message: err.message,
+      });
+    }
     next(err);
   }
 };
