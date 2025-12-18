@@ -1,6 +1,6 @@
 import express from 'express';
 import { submitBooking, getProfileData } from '../controllers/booking.controller.js';
-import { getDepartmentsAndDoctors, getRemindersDue, markRemindersSent, getRecentBookings, getUserBookings, updateBooking, getBookingById, checkInBooking } from '../controllers/booking.controller.js';
+import { getDepartmentsAndDoctors, getRemindersDue, markRemindersSent, getRecentBookings, getUserBookings, updateBooking, getBookingById, checkInBooking, updateBookingByCode } from '../controllers/booking.controller.js';
 import { requireAuth } from '../../infrastructure/middlewares/auth.middleware.js';
 
 const router = express.Router();
@@ -16,6 +16,9 @@ router.put('/:bookingId', requireAuth, updateBooking);
 // Check-in routes (public - không cần auth vì dùng QR code)
 router.get('/check-in/:bookingId', getBookingById);
 router.post('/check-in/:bookingId', checkInBooking);
+
+// Public update/cancel booking by submissionId (không cần auth)
+router.put('/code/:bookingCode', updateBookingByCode);
 // router.get('/:userId', getProfileData);
 
 

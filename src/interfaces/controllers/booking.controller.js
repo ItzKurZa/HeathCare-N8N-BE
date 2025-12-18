@@ -9,6 +9,7 @@ import {
   getUserBookingsService,
   updateBookingService,
   getBookingByIdService,
+  getBookingBySubmissionIdService,
   checkInBookingService
 
  } from '../../infrastructure/services/firebase.services.js';
@@ -30,6 +31,7 @@ const transformBooking = (booking) => {
   const time24 = booking.startTimeLocal ? booking.startTimeLocal.split(' ')[1] : '';
   return {
     id: booking.id,
+    submission_id: booking.submissionId || booking.submission_id, // Mã đặt lịch chính là submissionId
     user_id: booking.userId,
     full_name: booking.fullName,
     email: booking.email,
@@ -171,7 +173,28 @@ export const updateBooking = async (req, res, next) => {
     const { bookingId } = req.params;
     const updates = req.body;
     
-    const updatedBooking = await updateBookingService(bookingId, updates);
+    console.log(`[updateBooking] Received bookingId: "${bookingId}"`);
+    
+    // Tìm booking trước (có thể là submissionId hoặc UUID)
+    let booking;
+    try {
+      console.log(`[updateBooking] Trying to find by submissionId: "${bookingId}"`);
+      booking = await getBookingBySubmissionIdService(bookingId);
+      console.log(`[updateBooking] Found by submissionId, using UUID: ${booking.id} for update`);
+    } catch (err) {
+      console.log(`[updateBooking] Not found by submissionId, trying UUID: "${bookingId}"`);
+      // Nếu không tìm thấy theo submissionId, thử tìm theo UUID
+      try {
+        booking = await getBookingByIdService(bookingId);
+        console.log(`[updateBooking] Found by UUID`);
+      } catch (err2) {
+        console.log(`[updateBooking] Not found by UUID either`);
+        throw new Error('Booking not found');
+      }
+    }
+    
+    // Sử dụng UUID (doc.id) để update vì Firestore cần document ID
+    const updatedBooking = await updateBookingService(booking.id, updates);
     
     // Transform data để match với frontend format
     const transformed = transformBooking(updatedBooking);
@@ -181,15 +204,40 @@ export const updateBooking = async (req, res, next) => {
       booking: transformed,
     });
   } catch (err) {
+    console.error(`[updateBooking] Error:`, err.message);
+    if (err.message === 'Booking not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đặt lịch',
+      });
+    }
     next(err);
   }
 };
 
-// Get booking by ID (for check-in page)
+// Get booking by ID (for check-in page) - có thể là UUID hoặc submissionId
 export const getBookingById = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
-    const booking = await getBookingByIdService(bookingId);
+    console.log(`[getBookingById] Received bookingId: "${bookingId}"`);
+    let booking;
+    
+    // Thử tìm theo submissionId trước (mã đặt lịch chính)
+    try {
+      console.log(`[getBookingById] Trying to find by submissionId: "${bookingId}"`);
+      booking = await getBookingBySubmissionIdService(bookingId);
+      console.log(`[getBookingById] Found by submissionId`);
+    } catch (err) {
+      console.log(`[getBookingById] Not found by submissionId, trying UUID: "${bookingId}"`);
+      // Nếu không tìm thấy theo submissionId, thử tìm theo UUID (backward compatibility)
+      try {
+        booking = await getBookingByIdService(bookingId);
+        console.log(`[getBookingById] Found by UUID`);
+      } catch (err2) {
+        console.log(`[getBookingById] Not found by UUID either`);
+        throw new Error('Booking not found');
+      }
+    }
     
     // Transform data để match với frontend format
     const transformed = transformBooking(booking);
@@ -199,6 +247,57 @@ export const getBookingById = async (req, res, next) => {
       booking: transformed,
     });
   } catch (err) {
+    console.error(`[getBookingById] Error:`, err.message);
+    if (err.message === 'Booking not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đặt lịch',
+      });
+    }
+    next(err);
+  }
+};
+
+// Public update/cancel booking by submissionId (không cần auth)
+export const updateBookingByCode = async (req, res, next) => {
+  try {
+    const { bookingCode } = req.params;
+    const updates = req.body;
+    
+    console.log(`[updateBookingByCode] Received bookingCode: "${bookingCode}"`);
+    
+    // Tìm booking theo submissionId
+    let booking;
+    try {
+      booking = await getBookingBySubmissionIdService(bookingCode);
+      console.log(`[updateBookingByCode] Found by submissionId, using UUID: ${booking.id} for update`);
+    } catch (err) {
+      console.log(`[updateBookingByCode] Not found by submissionId`);
+      throw new Error('Booking not found');
+    }
+    
+    // Kiểm tra nếu đang hủy lịch
+    if (updates.status === 'cancelled' || updates.status === 'canceled') {
+      const updatedBooking = await updateBookingService(booking.id, { status: 'canceled' });
+      const transformed = transformBooking(updatedBooking);
+      return res.json({
+        success: true,
+        message: 'Hủy lịch hẹn thành công',
+        booking: transformed,
+      });
+    }
+    
+    // Update booking với UUID
+    const updatedBooking = await updateBookingService(booking.id, updates);
+    const transformed = transformBooking(updatedBooking);
+
+    return res.json({
+      success: true,
+      message: 'Cập nhật lịch hẹn thành công',
+      booking: transformed,
+    });
+  } catch (err) {
+    console.error(`[updateBookingByCode] Error:`, err.message);
     if (err.message === 'Booking not found') {
       return res.status(404).json({
         success: false,
@@ -213,7 +312,28 @@ export const getBookingById = async (req, res, next) => {
 export const checkInBooking = async (req, res, next) => {
   try {
     const { bookingId } = req.params;
-    const checkedInBooking = await checkInBookingService(bookingId);
+    console.log(`[checkInBooking] Received bookingId: "${bookingId}"`);
+    
+    // Tìm booking trước (có thể là submissionId hoặc UUID)
+    let booking;
+    try {
+      console.log(`[checkInBooking] Trying to find by submissionId: "${bookingId}"`);
+      booking = await getBookingBySubmissionIdService(bookingId);
+      console.log(`[checkInBooking] Found by submissionId, using UUID: ${booking.id} for check-in`);
+    } catch (err) {
+      console.log(`[checkInBooking] Not found by submissionId, trying UUID: "${bookingId}"`);
+      // Nếu không tìm thấy theo submissionId, thử tìm theo UUID
+      try {
+        booking = await getBookingByIdService(bookingId);
+        console.log(`[checkInBooking] Found by UUID`);
+      } catch (err2) {
+        console.log(`[checkInBooking] Not found by UUID either`);
+        throw new Error('Booking not found');
+      }
+    }
+    
+    // Sử dụng UUID (doc.id) để check-in vì Firestore cần document ID
+    const checkedInBooking = await checkInBookingService(booking.id);
     
     // Transform data để match với frontend format
     const transformed = transformBooking(checkedInBooking);
@@ -224,6 +344,7 @@ export const checkInBooking = async (req, res, next) => {
       booking: transformed,
     });
   } catch (err) {
+    console.error(`[checkInBooking] Error:`, err.message);
     if (err.message === 'Booking not found') {
       return res.status(404).json({
         success: false,

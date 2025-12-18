@@ -10,12 +10,19 @@ export const sendBookingToN8N = async (bookingData) => {
     const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, '') || 'http://localhost:3000';
     const callbackUrl = `${backendUrl}/api/webhook/n8n/booking`;
 
-    const checkInUrl = bookingData.checkInUrl || `${frontendUrl}/check-in/${bookingData.id}`;
+    // Sử dụng submissionId làm mã đặt lịch (6 ký tự chữ và số) thay vì UUID
+    const bookingCode = bookingData.submissionId || bookingData.submission_id || bookingData.id;
+    const checkInUrl = bookingData.checkInUrl || `${frontendUrl}/check-in/${bookingCode}`;
     const backendUrlForAssets = process.env.BACKEND_URL || backendUrl;
     const logoUrl = bookingData.logoUrl || process.env.LOGO_URL || `${backendUrlForAssets}/api/assets/logo`;
 
     const payload = { 
-        ...bookingData, 
+        ...bookingData,
+        // Mã đặt lịch chính - N8N template nên sử dụng field này thay vì 'id'
+        bookingCode: bookingCode,
+        maDatLich: bookingCode, // Tên tiếng Việt để dễ nhận biết trong N8N template
+        submissionId: bookingData.submissionId || bookingData.submission_id, // Đảm bảo submissionId có trong payload
+        // Lưu ý: 'id' vẫn giữ UUID để backward compatibility, nhưng không nên dùng trong email template
         created_At: Date.now(),
         callbackUrl,
         checkInUrl,

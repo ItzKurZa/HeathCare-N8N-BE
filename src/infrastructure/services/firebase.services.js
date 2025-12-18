@@ -170,9 +170,17 @@ export const processBookingService = async (payload) => {
   const b = payload || {};
 
   const id = String(b.id || uuid());
-  const submissionId = String(
-    b.submissionId || Math.floor(100 + Math.random() * 900)
-  );
+  // Tạo mã đặt lịch 6 ký tự gồm cả chữ và số (A-Z, 0-9)
+  const generateSubmissionId = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+  // Normalize submissionId thành uppercase để đảm bảo consistency
+  const submissionId = String(b.submissionId || generateSubmissionId()).toUpperCase().trim();
 
   const action = (b.action || 'create').toLowerCase();
 
@@ -458,6 +466,57 @@ export const getBookingByIdService = async (bookingId) => {
   };
 };
 
+export const getBookingBySubmissionIdService = async (submissionId) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  // Normalize submissionId thành uppercase để tìm kiếm
+  const searchId = String(submissionId).toUpperCase().trim();
+  console.log(`[getBookingBySubmissionIdService] Searching for submissionId: "${searchId}"`);
+
+  // Tìm kiếm với cả uppercase và case-insensitive (thử cả 2 cách)
+  let snap = await firestore
+    .collection('appointments')
+    .where('submissionId', '==', searchId)
+    .limit(1)
+    .get();
+
+  // Nếu không tìm thấy với uppercase, thử tìm với case-insensitive bằng cách query tất cả và filter
+  if (snap.empty) {
+    console.log(`[getBookingBySubmissionIdService] Not found with exact match, trying case-insensitive search`);
+    // Query tất cả và filter (chỉ dùng khi cần thiết vì không hiệu quả)
+    const allSnap = await firestore
+      .collection('appointments')
+      .limit(1000) // Giới hạn để tránh query quá nhiều
+      .get();
+    
+    const foundDoc = allSnap.docs.find(doc => {
+      const data = doc.data();
+      const docSubmissionId = String(data.submissionId || '').toUpperCase().trim();
+      return docSubmissionId === searchId;
+    });
+
+    if (foundDoc) {
+      const bookingData = {
+        id: foundDoc.id,
+        ...foundDoc.data(),
+      };
+      console.log(`[getBookingBySubmissionIdService] Found booking (case-insensitive): id=${bookingData.id}, submissionId=${bookingData.submissionId}`);
+      return bookingData;
+    }
+  } else {
+    const doc = snap.docs[0];
+    const bookingData = {
+      id: doc.id,
+      ...doc.data(),
+    };
+    console.log(`[getBookingBySubmissionIdService] Found booking: id=${bookingData.id}, submissionId=${bookingData.submissionId}`);
+    return bookingData;
+  }
+
+  console.log(`[getBookingBySubmissionIdService] No booking found with submissionId: "${searchId}"`);
+  throw new Error('Booking not found');
+};
+
 export const checkInBookingService = async (bookingId) => {
   if (!firestore) throw new Error('Firestore not initialized');
 
@@ -478,6 +537,28 @@ export const checkInBookingService = async (bookingId) => {
   // Kiểm tra booking đã check-in chưa
   if (bookingData.checkedInAtUTC) {
     throw new Error('Booking đã được check-in trước đó');
+  }
+
+  // Kiểm tra thời gian check-in: chỉ cho phép check-in trước giờ khám 15 phút
+  if (bookingData.startTimeUTC) {
+    const appointmentTime = new Date(bookingData.startTimeUTC);
+    const now = new Date();
+    const fifteenMinutesBefore = new Date(appointmentTime.getTime() - 15 * 60 * 1000); // 15 phút trước giờ khám
+    
+    console.log(`[checkInBookingService] Appointment time: ${appointmentTime.toISOString()}`);
+    console.log(`[checkInBookingService] Current time: ${now.toISOString()}`);
+    console.log(`[checkInBookingService] 15 minutes before: ${fifteenMinutesBefore.toISOString()}`);
+    
+    // Kiểm tra nếu quá sớm (trước 15 phút)
+    if (now < fifteenMinutesBefore) {
+      const minutesUntilAllowed = Math.ceil((fifteenMinutesBefore.getTime() - now.getTime()) / (60 * 1000));
+      throw new Error(`Chỉ có thể check-in trước giờ khám 15 phút. Vui lòng quay lại sau ${minutesUntilAllowed} phút nữa.`);
+    }
+    
+    // Kiểm tra nếu quá muộn (sau giờ khám)
+    if (now > appointmentTime) {
+      throw new Error('Đã quá giờ khám. Vui lòng liên hệ phòng khám để được hỗ trợ.');
+    }
   }
 
   // Update booking với check-in timestamp
@@ -527,8 +608,13 @@ export const updateBookingService = async (bookingId, updates) => {
   // Cập nhật các field khác nếu có
   if (updates.department) updateData.department = sanitize(updates.department);
   if (updates.doctor_name || updates.doctor) updateData.doctor = sanitize(updates.doctor_name || updates.doctor);
-  if (updates.notes || updates.note) updateData.note = sanitize(updates.notes || updates.note);
-  if (updates.reason) updateData.note = sanitize(updates.reason);
+  
+  // Xử lý note/reason: reason có priority cao hơn notes
+  if (updates.reason) {
+    updateData.note = sanitize(updates.reason);
+  } else if (updates.notes || updates.note) {
+    updateData.note = sanitize(updates.notes || updates.note);
+  }
 
   // ✅ VALIDATION: Nếu update doctor/time và không phải cancel, cần validate
   if (updateData.status !== 'canceled') {
