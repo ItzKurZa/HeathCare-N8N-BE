@@ -1,33 +1,5 @@
 import { firebaseAdmin, firestore } from '../../config/firebase.js';
 
-/**
- * Tìm kiếm thông tin người dùng từ tất cả các collection có thể chứa nhân viên/bác sĩ
- * @param {string} uid 
- */
-export const getUserAnywhere = async (uid) => {
-    if (!firestore) return null;
-
-    // 1. Kiểm tra trong collection 'admins'
-    const adminDoc = await firestore.collection('admins').doc(uid).get();
-    if (adminDoc.exists) return { ...adminDoc.data(), collection: 'admins' };
-
-    // 2. Kiểm tra trong collection 'users' (Thường chứa bệnh nhân)
-    const userDoc = await firestore.collection('users').doc(uid).get();
-    if (userDoc.exists) return { ...userDoc.data(), collection: 'users' };
-
-    // 3. Kiểm tra trong các collection con của 'departments'
-    const doctorSnapshot = await firestore.collectionGroup('doctors').where('uid', '==', uid).get();
-    if (!doctorSnapshot.empty) return { ...doctorSnapshot.docs[0].data(), collection: 'doctors' };
-
-    const nurseSnapshot = await firestore.collectionGroup('nurses').where('uid', '==', uid).get();
-    if (!nurseSnapshot.empty) return { ...nurseSnapshot.docs[0].data(), collection: 'nurses' };
-
-    const staffSnapshot = await firestore.collectionGroup('staff').where('uid', '==', uid).get();
-    if (!staffSnapshot.empty) return { ...staffSnapshot.docs[0].data(), collection: 'staff' };
-
-    return null;
-};
-
 export const createUser = async ({ email, password, fullname, phone, cccd, role, departmentId }) => {
     if (!firebaseAdmin || !firebaseAdmin.auth)
         throw new Error('Firebase Admin not initialized');
