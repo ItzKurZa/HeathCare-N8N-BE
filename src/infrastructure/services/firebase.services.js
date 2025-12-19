@@ -55,3 +55,25 @@ export const signOutUser = async (uid) => {
         throw new Error('Error signing out user');
     }
 };
+
+// [THÊM MỚI] Hàm tạo booking trong Firestore
+export const createBookingInFirestore = async (bookingData) => {
+    if (!firestore) throw new Error('Firestore not initialized');
+    
+    // Tạo document mới trong collection 'bookings'
+    // Sử dụng add() để để Firestore tự sinh ID, hoặc doc().set() nếu bạn tự tạo ID
+    const docRef = await firestore.collection('bookings').add({
+        ...bookingData,
+        status: 'pending', // Trạng thái ban đầu
+        createdAt: new Date()
+    });
+
+    return { id: docRef.id, ...bookingData };
+};
+
+// [THÊM MỚI] Hàm cập nhật booking (dùng cho Webhook N8N sau này)
+export const updateBookingInFirestore = async (bookingId, updateData) => {
+    if (!firestore) throw new Error('Firestore not initialized');
+    await firestore.collection('bookings').doc(bookingId).update(updateData);
+    return { id: bookingId, ...updateData };
+};
