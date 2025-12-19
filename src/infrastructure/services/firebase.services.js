@@ -1,6 +1,6 @@
 import { firebaseAdmin, firestore } from '../../config/firebase.js';
 
-export const createUser = async ({ email, password, fullname, phone, cccd, role }) => {
+export const createUser = async ({ email, password, fullname, phone, cccd, role, departmentId }) => {
     if (!firebaseAdmin || !firebaseAdmin.auth)
         throw new Error('Firebase Admin not initialized');
 
@@ -19,14 +19,25 @@ export const createUser = async ({ email, password, fullname, phone, cccd, role 
         phone,
         cccd,
         role: role || 'patient',
+        departmentId: departmentId || null,
         createdAt: new Date(),
     };
 
     if (firestore) {
-        await firestore.collection('users').doc(userRecord.uid).set(userData, { merge: true });
+        if (departmentId) {
+            await firestore
+                .collection('departments')
+                .doc(departmentId)
+                .collection(role)
+                .doc(userRecord.uid)
+                .set(userData, { merge: true });
+        } else {
+            await firestore.collection('users').doc(userRecord.uid).set(userData, { merge: true });
+        }
     }
+    
+    return { uid: userRecord.uid, email };
 };
-
 
 export const getUserProfile = async (uid) => {
     if (!firestore) return null;
