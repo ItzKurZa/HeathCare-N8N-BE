@@ -3,7 +3,7 @@ import { createBookingInFirestore } from '../../infrastructure/services/firebase
 import { requireFields } from '../../utils/validate.js';
 
 export const sendBookingToN8n = async (bookingData) => {
-    const requiredFields = ['user_id', 'department', 'appointment_date'];
+    const requiredFields = ['cccd', 'department', 'appointment_date'];
     requireFields(bookingData, requiredFields);
 
     const payload = { 

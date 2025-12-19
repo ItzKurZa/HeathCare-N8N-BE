@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import { config } from './config/env.js';
 
 import bookingRoutes from './interfaces/routes/booking.routes.js';
 import fileRoutes from './interfaces/routes/file.routes.js';
