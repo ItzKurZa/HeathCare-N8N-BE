@@ -8,7 +8,8 @@ export const sendMedicalFileToN8nAndCloud = async ({ fields, file }) => {
 
   if (!fileUrl) throw new Error('File upload failed — fileUrl missing');
 
-  const n8nResult = await sendMedicalFile({ fields: { ...fields, fileUrl } });
+  // const n8nResult = await sendMedicalFile({ fields: { ...fields, fileUrl } });
 
-  return { n8nResult, fileUrl };
+  // return { n8nResult, fileUrl };
+  return fileUrl;
 };
