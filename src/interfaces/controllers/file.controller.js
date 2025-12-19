@@ -1,4 +1,5 @@
 import { uploadMedicalFile } from '../../usecases/medfile/uploadMedicalFile.js';
+import { deleteMedicalFileUsecase } from '../../usecases/medfile/deleteMedicalFile.js';
 
 export const uploadFile = async (req, res, next) => {
   try {
