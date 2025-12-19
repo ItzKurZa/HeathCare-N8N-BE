@@ -12,13 +12,15 @@ export const createUser = async ({ email, password, fullname, phone, cccd, role,
         cccd: cccd || '',
     });
 
+    const actualRole = role === 'admin' ? 'admin' : (role === 'doctors' ? 'Doctor' : (role === 'nurses' ? 'Nurse' : 'Staff'));
+
     const userData = {
         uid: userRecord.uid,
         email,
-        fullname,
+        name: fullname,
         phone,
         cccd,
-        role: role || 'patient',
+        role: actualRole,
         createdAt: new Date(),
     };
 
@@ -40,7 +42,7 @@ export const createUser = async ({ email, password, fullname, phone, cccd, role,
             await firestore.collection('users').doc(userRecord.uid).set(userData, { merge: true });
         }
     }
-    
+
     return { uid: userRecord.uid, email };
 };
 
