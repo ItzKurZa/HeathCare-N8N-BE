@@ -6,7 +6,7 @@ import { cancelBooking } from '../controllers/booking.controller.js';
 
 const router = express.Router();
 
-router.post('/', submitBooking);
+router.post('/', requireAuth,submitBooking);
 router.get('/departments-doctors', getDepartmentsAndDoctors);
 router.post('/cancel/:bookingId', requireAuth, cancelBooking);
 
