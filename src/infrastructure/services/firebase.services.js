@@ -60,26 +60,55 @@ export const signOutUser = async (uid) => {
 export const createBookingInFirestore = async (bookingData) => {
     if (!firestore) throw new Error('Firestore not initialized');
     
-    const docRef = await firestore.collection('bookings').add({
-        ...bookingData,
-        status: 'pending', // Trạng thái ban đầu
-        createdAt: new Date()
-    });
+    // Tách uid ra để dùng làm Document ID cha, phần còn lại lưu vào Sub-collection
+    const { uid, ...dataToSave } = bookingData;
 
-    return { id: docRef.id, ...bookingData };
+    if (!uid) throw new Error('User ID (uid) is required to create booking');
+
+    // Cấu trúc: Bookings (Col) -> uid (Doc) -> Books (Sub-Col) -> AutoID (Doc)
+    const docRef = await firestore
+        .collection('Bookings')
+        .doc(uid)
+        .collection('Books')
+        .add({
+            ...dataToSave,
+            status: 'pending',
+            createdAt: new Date()
+        });
+
+    // Trả về dữ liệu bao gồm cả id mới tạo và uid
+    return { id: docRef.id, uid, ...dataToSave };
 };
 
 // [THÊM MỚI] Hàm cập nhật booking (dùng cho Webhook N8N sau này)
-export const updateBookingInFirestore = async (bookingId, updateData) => {
+export const updateBookingInFirestore = async (bookingId, updateData, userId) => {
     if (!firestore) throw new Error('Firestore not initialized');
-    await firestore.collection('bookings').doc(bookingId).update(updateData);
+
+    // Nếu không có userId, chúng ta không thể tìm thấy đường dẫn (trừ khi dùng Collection Group Query - phức tạp hơn)
+    if (!userId) {
+        // Fallback: Nếu hệ thống cũ gọi mà không có userId, bạn có thể cần logic xử lý khác
+        // Nhưng tốt nhất nên truyền userId từ UseCase xuống
+        throw new Error('UserId is required to update booking in nested structure');
+    }
+
+    await firestore
+        .collection('Bookings')
+        .doc(userId)
+        .collection('Books')
+        .doc(bookingId)
+        .update(updateData);
+
     return { id: bookingId, ...updateData };
 };
 
 export const getBookingsByUserId = async (userId) => {
     if (!firestore) return [];
-    const snapshot = await firestore.collection('bookings')
-        .where('user_id', '==', userId)
+
+    // Truy vấn trực tiếp vào Sub-collection của User đó
+    const snapshot = await firestore
+        .collection('Bookings')
+        .doc(userId)
+        .collection('Books')
         .orderBy('createdAt', 'desc')
         .get();
         

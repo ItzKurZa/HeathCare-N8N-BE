@@ -4,7 +4,13 @@ import { cancelBookingUsecase } from '../../usecases/booking/cancelBooking.js';
 
 export const submitBooking = async (req, res, next) => {
   try {
-    const result = await sendBookingToN8n(req.body);
+    // [THAY ĐỔI QUAN TRỌNG] Lấy uid từ req.user và gộp vào body
+    const bookingData = {
+      ...req.body,
+      uid: req.user.uid // Giả sử auth middleware đã gán user vào req
+    };
+
+    const result = await sendBookingToN8n(bookingData);
     res.status(200).json({ success: true, data: result });
   } catch (err) {
     next(err);

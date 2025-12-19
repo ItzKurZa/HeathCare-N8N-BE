@@ -5,6 +5,8 @@ export const cancelBookingUsecase = async (bookingId, userId) => {
         throw new Error("Booking ID is required");
     }
 
+    // Logic kiểm tra chủ sở hữu vẫn giữ nguyên. 
+    // Hàm getBookingsByUserId (đã sửa ở bước trước) sẽ lấy đúng danh sách trong sub-collection của user này.
     const userBookings = await getBookingsByUserId(userId);
     const isOwner = userBookings.some(b => b.id === bookingId);
     if (!isOwner) throw new Error("Unauthorized access to booking");
@@ -15,6 +17,7 @@ export const cancelBookingUsecase = async (bookingId, userId) => {
         updatedBy: userId
     };
 
-    const result = await updateBookingInFirestore(bookingId, updateData);
+    // [THAY ĐỔI] Truyền userId làm tham số thứ 3 để Service biết tìm booking ở đâu
+    const result = await updateBookingInFirestore(bookingId, updateData, userId);
     return result;
 };
