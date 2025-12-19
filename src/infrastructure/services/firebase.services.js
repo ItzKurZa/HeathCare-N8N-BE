@@ -60,8 +60,6 @@ export const signOutUser = async (uid) => {
 export const createBookingInFirestore = async (bookingData) => {
     if (!firestore) throw new Error('Firestore not initialized');
     
-    // Tạo document mới trong collection 'bookings'
-    // Sử dụng add() để để Firestore tự sinh ID, hoặc doc().set() nếu bạn tự tạo ID
     const docRef = await firestore.collection('bookings').add({
         ...bookingData,
         status: 'pending', // Trạng thái ban đầu

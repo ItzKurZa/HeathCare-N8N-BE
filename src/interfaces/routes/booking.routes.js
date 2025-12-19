@@ -6,5 +6,6 @@ const router = express.Router();
 
 router.post('/', submitBooking);
 router.get('/departments-doctors', getDepartmentsAndDoctors);
+router.post('/cancel/:bookingId', requireAuth, cancelBooking);
 
 export default router;
