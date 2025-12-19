@@ -1,7 +1,6 @@
 import { sendBookingToN8n } from '../../usecases/booking/sendBookingToN8N.js';
 import { fetchProfileData } from '../../usecases/booking/fetchBookingData.js';
 import { getDepartmentsAndDoctorsService } from '../../usecases/booking/getDepartmentsAndDoctors.js';
-import { seedDatabase } from '../../infrastructure/services/firebase.services.js';
 
 export const submitBooking = async (req, res, next) => {
   try {
@@ -12,7 +11,7 @@ export const submitBooking = async (req, res, next) => {
   }
 };
 
-export const getDepartmentsAndDoctors = async (req, res, next) => {
+export const getDepartmentsAndDoctors = async (res, next) => {
   try {
     const { departments, doctors } = await getDepartmentsAndDoctorsService();
     console.log('Controller received departments and doctors:', { departments, doctors });
