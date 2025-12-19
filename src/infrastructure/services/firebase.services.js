@@ -24,13 +24,17 @@ export const createUser = async ({ email, password, fullname, phone, cccd, role,
     };
 
     if (firestore) {
-        if (departmentId) {
-            await firestore
+        if (departmentId && typeof departmentId === 'string' && departmentId.trim() !== '') {
+            if(role !== 'admin') {
+                await firestore
                 .collection('departments')
                 .doc(departmentId)
-                .collection(role)
+                .collection(role || 'doctor')
                 .doc(userRecord.uid)
                 .set(userData, { merge: true });
+            } else {
+                await firestore.collection('admins').doc(userRecord.uid).set(userData, { merge: true });
+            }
         } else {
             await firestore.collection('users').doc(userRecord.uid).set(userData, { merge: true });
         }
