@@ -5,7 +5,7 @@ import { getDepartmentsAndDoctorsService } from '../../usecases/booking/getDepar
 export const submitBooking = async (req, res, next) => {
   try {
     const result = await sendBookingToN8n(req.body);
-    res.status(200).json({ success: true, result });
+    res.status(200).json({ success: true, data: result });
   } catch (err) {
     next(err);
   }
@@ -14,15 +14,18 @@ export const submitBooking = async (req, res, next) => {
 export const getDepartmentsAndDoctors = async (req, res, next) => {
   try {
     const { departments, doctors } = await getDepartmentsAndDoctorsService();
-    console.log('Controller received departments and doctors:', { departments, doctors });
-    res.status(200).json({ success: true, departments, doctors });
+    console.log('Controller fetching data success');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        departments,
+        doctors
+      }
+    });
+
   } catch (err) {
-    console.error('Error in controller:', err);
-    if (next) {
-      next(err);
-    } else {
-      res.status(500).json({ success: false, error: 'Internal Server Error' });
-    }
+    next(err);
   }
 };
 
@@ -30,7 +33,7 @@ export const getProfileData = async (req, res, next) => {
   try {
     const { userId } = req.params;
     const result = await fetchProfileData({ userId });
-    res.status(200).json({ success: true, result });
+    res.status(200).json({ success: true, data: result });
   } catch (err) {
     next(err);
   }
