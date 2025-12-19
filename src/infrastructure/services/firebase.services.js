@@ -134,31 +134,3 @@ export const getDepartmentsAndDoctorsFromFirestore = async () => {
         return { departments: [], doctors: [] };
     }
 };
-
-export const seedDatabase = async () => {
-    if (!firestore) return;
-
-    console.log("Starting seeding nested data...");
-
-    const deptRef1 = await firestore.collection('departments').add({ 
-        name: 'General Medicine', 
-        description: 'General health check up' 
-    });
-    await deptRef1.collection('doctors').add({ name: 'Dr. John Smith', available: true });
-    await deptRef1.collection('doctors').add({ name: 'Dr. Anna White', available: true });
-
-    const deptRef2 = await firestore.collection('departments').add({ 
-        name: 'Cardiology', 
-        description: 'Heart and blood vessels' 
-    });
-    await deptRef2.collection('doctors').add({ name: 'Dr. Sarah Johnson', available: true });
-
-    const deptRef3 = await firestore.collection('departments').add({ 
-        name: 'Pediatrics', 
-        description: 'Medical care for infants, children' 
-    });
-    await deptRef3.collection('doctors').add({ name: 'Dr. Emily Davis', available: true });
-    await deptRef3.collection('doctors').add({ name: 'Dr. Michael Brown', available: true });
-    
-    console.log("Database seeded with nested structure successfully!");
-};
