@@ -12,8 +12,7 @@ const app = express();
 
 const allowedOrigins = [
     config.frontendUrl, // domain thật (https://kurza.id.vn)
-    "http://localhost:5173", // dev local
-    "https://zp1v56uxy8rdx5ypatb0ockcb9tr6a-oci3--5173--96435430.local-credentialless.webcontainer-api.io", // webcontainer
+    "https://orange-space-yodel-x5xjx4pv5p4q2pjp6-5173.app.github.dev/",
 ];
 
 app.use(cors({ origin: allowedOrigins }));
