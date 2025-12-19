@@ -1,6 +1,6 @@
 import { firebaseAdmin, firestore } from '../../config/firebase.js';
 
-export const createUser = async ({ email, password, fullname, phone, cccd }) => {
+export const createUser = async ({ email, password, fullname, phone, cccd, role }) => {
     if (!firebaseAdmin || !firebaseAdmin.auth)
         throw new Error('Firebase Admin not initialized');
 
@@ -18,6 +18,7 @@ export const createUser = async ({ email, password, fullname, phone, cccd }) => 
         fullname,
         phone,
         cccd,
+        role: role || 'patient',
         createdAt: new Date(),
     };
 
