@@ -59,7 +59,7 @@ export const signOutUser = async (uid) => {
 // [THÊM MỚI] Hàm tạo booking trong Firestore
 export const createBookingInFirestore = async (bookingData) => {
     if (!firestore) throw new Error('Firestore not initialized');
-    
+
     // Tách uid ra để dùng làm Document ID cha, phần còn lại lưu vào Sub-collection
     const { uid, ...dataToSave } = bookingData;
 
@@ -111,7 +111,7 @@ export const getBookingsByUserId = async (userId) => {
         .collection('Books')
         .orderBy('createdAt', 'desc')
         .get();
-        
+
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
@@ -141,7 +141,7 @@ export const saveMedicalFile = async (userId, fileData) => {
 
 export const getMedicalFilesByUserId = async (userId) => {
     if (!firestore) return [];
-    
+
     try {
         const snapshot = await firestore
             .collection('MedicalFiles') // Collection cha
@@ -150,11 +150,10 @@ export const getMedicalFilesByUserId = async (userId) => {
             .orderBy('UploadDate', 'desc') // Sắp xếp theo ngày upload
             .get();
 
-        return snapshot.docs.map(doc => ({ 
-            id: doc.id, 
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
             ...doc.data(),
-            // Convert Timestamp của Firestore sang Date string để Frontend dễ đọc
-            UploadDate: doc.data().UploadDate?.toDate ? doc.data().UploadDate.toDate() : doc.data().UploadDate 
+            UploadDate: doc.data().UploadDate?.toDate ? doc.data().UploadDate.toDate() : doc.data().UploadDate
         }));
     } catch (error) {
         console.error("Error fetching user files:", error);
@@ -162,12 +161,31 @@ export const getMedicalFilesByUserId = async (userId) => {
     }
 };
 
+export const getMedicalFileById = async (userId, fileId) => {
+    const doc = await firestore
+        .collection('MedicalFiles')
+        .doc(userId)
+        .collection('Files')
+        .doc(fileId)
+        .get();
+    return doc.exists ? doc.data() : null;
+};
+
+export const deleteMedicalFileFromFirestore = async (userId, fileId) => {
+    await firestore
+        .collection('MedicalFiles')
+        .doc(userId)
+        .collection('Files')
+        .doc(fileId)
+        .delete();
+};
+
 export const getDepartmentsAndDoctorsFromFirestore = async () => {
     if (!firestore) return { departments: [], doctors: [] };
 
     try {
         const deptSnapshot = await firestore.collection('departments').get();
-        
+
         const departments = deptSnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
