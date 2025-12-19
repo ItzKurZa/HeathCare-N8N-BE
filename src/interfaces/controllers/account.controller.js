@@ -2,6 +2,7 @@ import { createAccount } from '../../usecases/account/createAccount.js';
 import { signInAccount } from '../../usecases/account/signInAccount.js';
 import { getUserProfileData } from '../../usecases/account/getUserProfile.js';
 import { signOutAccount } from '../../usecases/account/signOut.js';
+import { refreshToken } from '../../usecases/account/refreshToken.js';
 
 export const signup = async (req, res, next) => {
     try {
@@ -44,5 +45,15 @@ export const signOut = async (req, res, next) => {
         res.status(200).json({ success: true, ...result });
     } catch (err) {
         next(err);
+    }
+};
+
+export const refreshToken = async (req, res, next) => {
+    try {
+        const { refreshToken } = req.body;
+        const result = await refreshTokenUsecase(refreshToken);
+        res.status(200).json({ success: true, ...result });
+    } catch (err) {
+        res.status(401).json({ success: false, message: err.message });
     }
 };
