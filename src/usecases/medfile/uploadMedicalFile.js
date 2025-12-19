@@ -11,7 +11,7 @@ export const uploadMedicalFile = async (userId, file) => {
 
         const fileMetadata = {
             fileName: file.originalname,
-            link: b2Result.url,
+            link: b2Result.fileUrl,
             fileId: b2Result.fileId,
             mimeType: file.mimetype,
             summary: 'Đang chờ xử lý...'

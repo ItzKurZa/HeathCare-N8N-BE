@@ -98,12 +98,12 @@ export const saveMedicalFile = async (userId, fileData) => {
             .doc(userId)
             .collection('Files')
             .add({
-                fileName: fileData.fileName,       // Tên file gốc
-                Link: fileData.link,               // Link đến Backblaze
-                Summary: fileData.summary || '',   // Tóm tắt (ban đầu có thể để trống hoặc "Đang xử lý")
-                UploadDate: new Date(),            // Ngày upload
-                fileId: fileData.fileId,           // ID của file bên Backblaze (để dễ quản lý xóa sau này)
-                mimeType: fileData.mimeType        // Loại file (pdf, jpg...)
+                fileName: fileData.fileName,
+                Link: fileData.link,
+                Summary: fileData.summary || '',
+                UploadDate: new Date(),
+                fileId: fileData.fileId,
+                mimeType: fileData.mimeType
             });
 
         return { id: fileRef.id, ...fileData };
