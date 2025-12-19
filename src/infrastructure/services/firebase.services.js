@@ -19,7 +19,6 @@ export const createUser = async ({ email, password, fullname, phone, cccd, role,
         phone,
         cccd,
         role: role || 'patient',
-        departmentId: departmentId || null,
         createdAt: new Date(),
     };
 
