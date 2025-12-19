@@ -11,7 +11,7 @@ export const submitBooking = async (req, res, next) => {
   }
 };
 
-export const getDepartmentsAndDoctors = async (res, next) => {
+export const getDepartmentsAndDoctors = async (req, res, next) => {
   try {
     const { departments, doctors } = await getDepartmentsAndDoctorsService();
     console.log('Controller received departments and doctors:', { departments, doctors });
