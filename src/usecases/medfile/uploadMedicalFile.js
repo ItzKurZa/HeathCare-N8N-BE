@@ -1,4 +1,4 @@
-import { sendMedicalFile } from '../../infrastructure/services/n8n.services.js';
+// import { sendMedicalFile } from '../../infrastructure/services/n8n.services.js';
 import { uploadFileToBackblaze } from '../../infrastructure/services/backblaze.services.js';
 import { saveMedicalFile } from '../../infrastructure/services/firebase.services.js'; 
 
