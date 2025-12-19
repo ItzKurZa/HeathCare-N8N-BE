@@ -233,3 +233,60 @@ export const getDepartmentsAndDoctorsFromFirestore = async () => {
         return { departments: [], doctors: [] };
     }
 };
+
+// [THÊM MỚI] Lấy danh sách Booking có phân quyền (Collection Group Query)
+export const getAllBookingsFromFirestore = async (filter = {}) => {
+    if (!firestore) return [];
+
+    try {
+        // collectionGroup('Books') cho phép tìm trong tất cả sub-collection tên là 'Books'
+        let query = firestore.collectionGroup('Books');
+
+        // Áp dụng bộ lọc
+        if (filter.department) {
+            query = query.where('department', '==', filter.department);
+        }
+        
+        // Nếu là Bác sĩ, chỉ xem lịch của chính mình (hoặc theo khoa)
+        if (filter.doctorName) {
+            query = query.where('doctor', '==', filter.doctorName);
+        }
+
+        // Sắp xếp theo ngày tạo (Lưu ý: Cần tạo Index trong Firestore nếu dùng where + orderBy)
+        // Tạm thời comment orderBy nếu chưa tạo index để tránh lỗi
+        // query = query.orderBy('createdAt', 'desc');
+
+        const snapshot = await query.get();
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+        console.error("Error fetching all bookings:", error);
+        return [];
+    }
+};
+
+// [THÊM MỚI] Lấy danh sách Medical Files (Collection Group Query)
+export const getAllMedicalFilesFromFirestore = async () => {
+    if (!firestore) return [];
+
+    try {
+        // Lấy tất cả file từ tất cả user
+        const snapshot = await firestore.collectionGroup('Files')
+            .orderBy('UploadDate', 'desc')
+            .get();
+
+        // Cần map thêm userId (là id của doc cha) để biết file của ai
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                // Lấy ID của document cha (User ID) từ đường dẫn reference
+                userId: doc.ref.parent.parent.id, 
+                UploadDate: data.UploadDate?.toDate ? data.UploadDate.toDate() : data.UploadDate
+            };
+        });
+    } catch (error) {
+        console.error("Error fetching all medical files:", error);
+        return [];
+    }
+};

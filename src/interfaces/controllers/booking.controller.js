@@ -1,6 +1,7 @@
 import { sendBookingToN8n } from '../../usecases/booking/sendBookingToN8N.js';
 import { getDepartmentsAndDoctorsService } from '../../usecases/booking/getDepartmentsAndDoctors.js';
 import { cancelBookingUsecase } from '../../usecases/booking/cancelBooking.js';
+import { getBookings } from '../../usecases/booking/getBookings.js';
 
 export const submitBooking = async (req, res, next) => {
   try {
@@ -47,6 +48,16 @@ export const cancelBooking = async (req, res, next) => {
             message: 'Booking cancelled successfully', 
             data: result 
         });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const getBookingsController = async (req, res, next) => {
+    try {
+        const uid = req.user.uid; // Lấy từ token
+        const result = await getBookings(uid);
+        res.status(200).json({ success: true, data: result });
     } catch (err) {
         next(err);
     }

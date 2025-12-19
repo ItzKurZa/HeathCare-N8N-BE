@@ -1,5 +1,6 @@
 import { uploadMedicalFile } from '../../usecases/medfile/uploadMedicalFile.js';
 import { deleteMedicalFileUsecase } from '../../usecases/medfile/deleteMedicalFile.js';
+import { getAllMedicalFiles } from '../../usecases/medfile/getMedicalFiles.js';
 
 export const uploadFile = async (req, res, next) => {
   try {
@@ -40,4 +41,13 @@ export const deleteFile = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+export const getMedicalFilesList = async (req, res, next) => {
+    try {
+        const result = await getAllMedicalFiles();
+        res.status(200).json({ success: true, data: result });
+    } catch (err) {
+        next(err);
+    }
 };
