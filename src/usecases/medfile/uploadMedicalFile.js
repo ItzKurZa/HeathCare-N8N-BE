@@ -1,15 +1,30 @@
 import { sendMedicalFile } from '../../infrastructure/services/n8n.services.js';
 import { uploadFileToBackblaze } from '../../infrastructure/services/backblaze.services.js';
+import { saveMedicalFile } from '../../infrastructure/services/firebase.services.js'; 
 
-export const sendMedicalFileToN8nAndCloud = async ({ fields, file }) => {
-  if (!file) throw new Error('File required');
+export const uploadMedicalFile = async (userId, file) => {
+    if (!file) throw new Error('No file provided');
+    if (!userId) throw new Error('User ID is required');
 
-  const { fileUrl } = await uploadFileToBackblaze(file);
+    try {
+        const b2Result = await uploadFileToBackblaze(file);
 
-  if (!fileUrl) throw new Error('File upload failed — fileUrl missing');
+        const fileMetadata = {
+            fileName: file.originalname,
+            link: b2Result.url,
+            fileId: b2Result.fileId,
+            mimeType: file.mimetype,
+            summary: 'Đang chờ xử lý...'
+        };
 
-  // const n8nResult = await sendMedicalFile({ fields: { ...fields, fileUrl } });
+        const savedRecord = await saveMedicalFile(userId, fileMetadata);
 
-  // return { n8nResult, fileUrl };
-  return fileUrl;
+        // await sendFileToN8N(savedRecord);
+
+        return savedRecord;
+
+    } catch (error) {
+        console.error('Upload Process Failed:', error);
+        throw error;
+    }
 };

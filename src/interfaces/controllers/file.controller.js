@@ -1,12 +1,26 @@
-import { sendMedicalFileToN8nAndCloud } from '../../usecases/medfile/uploadMedicalFile.js';
+import { uploadMedicalFile } from '../../usecases/medfile/uploadMedicalFile.js';
 
-export const uploadMedical = async (req, res, next) => {
-    try {
-        const file = req.file;
-        const fields = req.body;
-        const result = await sendMedicalFileToN8nAndCloud({ fields, file });
-        res.status(200).json({ file: result });
-    } catch (err) {
-        next(err);
+export const uploadFile = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
+
+    const userId = req.user?.uid || req.user?.user_id; 
+
+    if (!userId) {
+        return res.status(401).json({ success: false, message: 'User identity not found' });
+    }
+
+    const result = await uploadMedicalFile(userId, req.file);
+
+    res.status(200).json({ 
+        success: true, 
+        message: 'File uploaded and saved successfully',
+        data: result 
+    });
+
+  } catch (err) {
+    next(err);
+  }
 };

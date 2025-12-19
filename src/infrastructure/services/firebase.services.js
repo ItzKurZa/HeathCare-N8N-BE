@@ -89,7 +89,30 @@ export const getBookingsByUserId = async (userId) => {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
 
-// [THÊM MỚI] Lấy danh sách hồ sơ bệnh án
+export const saveMedicalFile = async (userId, fileData) => {
+    if (!firestore) throw new Error("Firestore not initialized");
+
+    try {
+        const fileRef = await firestore
+            .collection('MedicalFiles')
+            .doc(userId)
+            .collection('Files')
+            .add({
+                fileName: fileData.fileName,       // Tên file gốc
+                Link: fileData.link,               // Link đến Backblaze
+                Summary: fileData.summary || '',   // Tóm tắt (ban đầu có thể để trống hoặc "Đang xử lý")
+                UploadDate: new Date(),            // Ngày upload
+                fileId: fileData.fileId,           // ID của file bên Backblaze (để dễ quản lý xóa sau này)
+                mimeType: fileData.mimeType        // Loại file (pdf, jpg...)
+            });
+
+        return { id: fileRef.id, ...fileData };
+    } catch (error) {
+        console.error("Error saving medical file metadata:", error);
+        throw new Error("Could not save file metadata to Firestore");
+    }
+};
+
 export const getMedicalFilesByUserId = async (userId) => {
     if (!firestore) return [];
     const snapshot = await firestore.collection('medical_files') // Giả định tên collection là medical_files
