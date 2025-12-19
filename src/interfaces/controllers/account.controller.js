@@ -2,7 +2,7 @@ import { createAccount } from '../../usecases/account/createAccount.js';
 import { signInAccount } from '../../usecases/account/signInAccount.js';
 import { getUserProfileData } from '../../usecases/account/getUserProfile.js';
 import { signOutAccount } from '../../usecases/account/signOut.js';
-import { refreshToken } from '../../usecases/account/refreshToken.js';
+import { refreshTokenUsecase } from '../../usecases/account/refreshTokenUsecase.js';
 
 export const signup = async (req, res, next) => {
     try {
