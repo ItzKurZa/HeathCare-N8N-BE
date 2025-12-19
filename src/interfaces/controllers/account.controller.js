@@ -7,8 +7,8 @@ import { fetchProfileData } from '../../usecases/account/fetchProfileData.js';
 
 export const signup = async (req, res, next) => {
     try {
-        const { email, password, fullname, phone, cccd, role } = req.body;
-        const result = await createAccount({ email, password, fullname, phone, cccd, role });
+        const { email, password, fullname, phone, cccd, role, departmentId } = req.body;
+        const result = await createAccount({ email, password, fullname, phone, cccd, role, departmentId });
         res.status(201).json({ success: true, ...result });
     } catch (err) {
         next(err);
@@ -60,11 +60,11 @@ export const refreshToken = async (req, res, next) => {
 };
 
 export const getProfileData = async (req, res, next) => {
-  try {
-    const { userId } = req.params;
-    const result = await fetchProfileData({ userId });
-    res.status(200).json({ success: true, data: result });
-  } catch (err) {
-    next(err);
-  }
+    try {
+        const { userId } = req.params;
+        const result = await fetchProfileData({ userId });
+        res.status(200).json({ success: true, data: result });
+    } catch (err) {
+        next(err);
+    }
 };
