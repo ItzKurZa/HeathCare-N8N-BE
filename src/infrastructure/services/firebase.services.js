@@ -23,19 +23,21 @@ export const createUser = async ({ email, password, fullname, phone, cccd, role,
         createdAt: new Date(),
     };
 
+    const validDeptId = (typeof departmentId === 'string') ? departmentId : null;
+
     if (firestore) {
-        if (departmentId && typeof departmentId === 'string' && departmentId.trim() !== '') {
-            if(role !== 'admin') {
-                await firestore
+        // Kiểm tra departmentId có giá trị hợp lệ và không phải 'admin'
+        if (departmentId && departmentId !== "" && role !== 'admin') {
+            await firestore
                 .collection('departments')
-                .doc(departmentId)
-                .collection(role || 'doctor')
+                .doc(validDeptId)
+                .collection(role)
                 .doc(userRecord.uid)
                 .set(userData, { merge: true });
-            } else {
-                await firestore.collection('admins').doc(userRecord.uid).set(userData, { merge: true });
-            }
+        } else if (role === 'admin') {
+            await firestore.collection('admins').doc(userRecord.uid).set(userData, { merge: true });
         } else {
+            // Trường hợp dành cho bệnh nhân hoặc khi không có khoa
             await firestore.collection('users').doc(userRecord.uid).set(userData, { merge: true });
         }
     }

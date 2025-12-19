@@ -7,7 +7,8 @@ import { fetchProfileData } from '../../usecases/account/fetchProfileData.js';
 
 export const signup = async (req, res, next) => {
     try {
-        const { email, password, fullname, phone, cccd, role, department: departmentId } = req.body;
+        const { email, password, fullname, phone, cccd, role, department } = req.body;
+        const departmentId = (typeof department === 'object') ? department.id : department;
         const result = await createAccount({ email, password, fullname, phone, cccd, role, departmentId });
         res.status(201).json({ success: true, ...result });
     } catch (err) {
