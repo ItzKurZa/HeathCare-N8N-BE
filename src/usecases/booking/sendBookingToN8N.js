@@ -3,7 +3,7 @@ import { createBookingInFirestore } from '../../infrastructure/services/firebase
 import { requireFields } from '../../utils/validate.js';
 
 export const sendBookingToN8n = async (bookingData) => {
-    const requiredFields = ['user_id', 'department', 'appointment_date', 'reason']; // Kiểm tra kỹ hơn các trường quan trọng
+    const requiredFields = ['user_id', 'department', 'appointment_date']; // Kiểm tra kỹ hơn các trường quan trọng
     requireFields(bookingData, requiredFields);
 
     // 1. Lưu vào Database trước (An toàn dữ liệu)

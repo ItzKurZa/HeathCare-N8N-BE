@@ -10,12 +10,12 @@ import { errorHandler } from './infrastructure/middlewares/errorHandler.js';
 
 const app = express();
 
-const allowedOrigins = [
-    config.frontendUrl, // domain thật (https://kurza.id.vn)
-    "https://orange-space-yodel-x5xjx4pv5p4q2pjp6-5173.app.github.dev/",
-];
+// const allowedOrigins = [
+//     config.frontendUrl, // domain thật (https://kurza.id.vn)
+//     "https://orange-space-yodel-x5xjx4pv5p4q2pjp6-5173.app.github.dev/",
+// ];
 
-app.use(cors({ origin: allowedOrigins }));
+// app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 app.use('/api/booking', bookingRoutes);
