@@ -3,6 +3,7 @@ import { signInAccount } from '../../usecases/account/signInAccount.js';
 import { getUserProfileData } from '../../usecases/account/getUserProfile.js';
 import { signOutAccount } from '../../usecases/account/signOut.js';
 import { refreshTokenUsecase } from '../../usecases/account/refreshTokenUsecase.js';
+import { fetchProfileData } from '../../usecases/account/fetchProfileData.js';
 
 export const signup = async (req, res, next) => {
     try {
@@ -56,4 +57,14 @@ export const refreshToken = async (req, res, next) => {
     } catch (err) {
         res.status(401).json({ success: false, message: err.message });
     }
+};
+
+export const getProfileData = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const result = await fetchProfileData({ userId });
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
 };

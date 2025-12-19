@@ -3,7 +3,6 @@ import { getUserProfile, getBookingsByUserId, getMedicalFilesByUserId } from '..
 export const fetchProfileData = async ({ userId }) => {
     if (!userId) throw new Error("User ID is required");
 
-    // Sử dụng Promise.all để chạy song song 3 tác vụ -> Tốc độ nhanh hơn
     const [userProfile, bookings, medicalFiles] = await Promise.all([
         getUserProfile(userId),
         getBookingsByUserId(userId),
@@ -14,7 +13,6 @@ export const fetchProfileData = async ({ userId }) => {
         throw new Error("User not found");
     }
 
-    // Trả về cấu trúc dữ liệu tổng hợp
     return {
         user: userProfile,
         bookings: bookings || [],

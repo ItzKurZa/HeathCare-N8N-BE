@@ -78,12 +78,11 @@ export const updateBookingInFirestore = async (bookingId, updateData) => {
     return { id: bookingId, ...updateData };
 };
 
-// [THÊM MỚI] Lấy danh sách booking của user
 export const getBookingsByUserId = async (userId) => {
     if (!firestore) return [];
     const snapshot = await firestore.collection('bookings')
         .where('user_id', '==', userId)
-        .orderBy('createdAt', 'desc') // Sắp xếp mới nhất trước
+        .orderBy('createdAt', 'desc')
         .get();
         
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -115,12 +114,25 @@ export const saveMedicalFile = async (userId, fileData) => {
 
 export const getMedicalFilesByUserId = async (userId) => {
     if (!firestore) return [];
-    const snapshot = await firestore.collection('medical_files') // Giả định tên collection là medical_files
-        .where('user_id', '==', userId)
-        .orderBy('uploaded_at', 'desc')
-        .get();
+    
+    try {
+        const snapshot = await firestore
+            .collection('MedicalFiles') // Collection cha
+            .doc(userId)                // Document User
+            .collection('Files')        // Sub-collection Files
+            .orderBy('UploadDate', 'desc') // Sắp xếp theo ngày upload
+            .get();
 
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data(),
+            // Convert Timestamp của Firestore sang Date string để Frontend dễ đọc
+            UploadDate: doc.data().UploadDate?.toDate ? doc.data().UploadDate.toDate() : doc.data().UploadDate 
+        }));
+    } catch (error) {
+        console.error("Error fetching user files:", error);
+        return [];
+    }
 };
 
 export const getDepartmentsAndDoctorsFromFirestore = async () => {
