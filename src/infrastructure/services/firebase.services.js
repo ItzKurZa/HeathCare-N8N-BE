@@ -12,7 +12,7 @@ export const createUser = async ({ email, password, fullname, phone, cccd, role,
         cccd: cccd || '',
     });
 
-    const actualRole = role === 'admin' ? 'admin' : (role === 'doctors' ? 'Doctor' : (role === 'nurses' ? 'Nurse' : 'Staff'));
+    const actualRole = role === 'admin' ? 'Admin' : (role === 'doctors' ? 'Doctor' : (role === 'nurses' ? 'Nurse' : 'Staff'));
 
     const userData = {
         uid: userRecord.uid,
@@ -48,8 +48,44 @@ export const createUser = async ({ email, password, fullname, phone, cccd, role,
 
 export const getUserProfile = async (uid) => {
     if (!firestore) return null;
-    const doc = await firestore.collection('users').doc(uid).get();
-    return doc.exists ? doc.data() : null;
+
+    try {
+        // 1. Kiểm tra trong collection 'admins' trước
+        const adminDoc = await firestore.collection('admins').doc(uid).get();
+        if (adminDoc.exists) {
+            return { ...adminDoc.data(), role: 'admin' };
+        }
+
+        // 2. Nếu không phải admin, kiểm tra trong các sub-collection bằng Collection Group
+        // Lưu ý: Trong hàm createUser, chúng ta đã lưu trường 'uid' vào trong document.
+        // Chúng ta sẽ dùng nó để truy vấn.
+
+        const collectionsToCheck = ['doctors', 'nurses', 'staffs'];
+
+        for (const colName of collectionsToCheck) {
+            // Tìm trong tất cả các sub-collection có tên là colName (ví dụ: tất cả Doctor ở mọi khoa)
+            const snapshot = await firestore.collectionGroup(colName)
+                .where('uid', '==', uid)
+                .limit(1)
+                .get();
+
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                return doc.data();
+            }
+        }
+
+        // 3. Cuối cùng kiểm tra collection 'users' (dành cho bệnh nhân/khách)
+        const userDoc = await firestore.collection('users').doc(uid).get();
+        if (userDoc.exists) {
+            return userDoc.data();
+        }
+
+        return null; // Không tìm thấy user
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+    }
 };
 
 export const verifyIdToken = async (idToken) => {
