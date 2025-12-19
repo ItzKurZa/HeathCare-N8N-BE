@@ -77,3 +77,25 @@ export const updateBookingInFirestore = async (bookingId, updateData) => {
     await firestore.collection('bookings').doc(bookingId).update(updateData);
     return { id: bookingId, ...updateData };
 };
+
+// [THÊM MỚI] Lấy danh sách booking của user
+export const getBookingsByUserId = async (userId) => {
+    if (!firestore) return [];
+    const snapshot = await firestore.collection('bookings')
+        .where('user_id', '==', userId)
+        .orderBy('createdAt', 'desc') // Sắp xếp mới nhất trước
+        .get();
+        
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+// [THÊM MỚI] Lấy danh sách hồ sơ bệnh án
+export const getMedicalFilesByUserId = async (userId) => {
+    if (!firestore) return [];
+    const snapshot = await firestore.collection('medical_files') // Giả định tên collection là medical_files
+        .where('user_id', '==', userId)
+        .orderBy('uploaded_at', 'desc')
+        .get();
+
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
