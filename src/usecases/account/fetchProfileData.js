@@ -1,10 +1,10 @@
-import { getUserProfile, getBookingsByUserId, getMedicalFilesByUserId } from '../../infrastructure/services/firebase.services.js';
+import { getPatientProfile, getBookingsByUserId, getMedicalFilesByUserId } from '../../infrastructure/services/firebase.services.js';
 
 export const fetchProfileData = async ({ userId }) => {
     if (!userId) throw new Error("User ID is required");
 
     const [userProfile, bookings, medicalFiles] = await Promise.all([
-        getUserProfile(userId),
+        getPatientProfile(userId),
         getBookingsByUserId(userId),
         getMedicalFilesByUserId(userId)
     ]);
