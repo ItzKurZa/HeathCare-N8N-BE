@@ -25,14 +25,15 @@ export const getBookings = async (uid) => {
     let filter = {};
 
     // 2. Logic phân quyền
-    if (role === 'admin') {
+    if (role === 'Admin') {
         // Admin thấy hết -> Không filter
         filter = {};
-    } else if (role === 'doctor' || role === 'doctors') {
+    } else if (role === 'Doctor' || role === 'doctors') {
         // Bác sĩ chỉ thấy lịch của mình
         filter = { doctorName: doctorName }; 
+        console.log(`⚠️ Đang là Bác sĩ (${doctorName})`);
         // Hoặc nếu muốn thấy cả khoa: filter = { department: department };
-    } else if (role === 'nurse' || role === 'nurses' || role === 'staff' || role === 'staffs') {
+    } else if (role === 'Nurse' || role === 'nurses' || role === 'Staff' || role === 'staffs') {
         // Y tá/Nhân viên thấy lịch của cả Khoa
         filter = { department: department };
     } else {

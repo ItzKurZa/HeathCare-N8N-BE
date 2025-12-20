@@ -310,9 +310,9 @@ export const getAllBookingsFromFirestore = async (filter = {}) => {
         }
 
         // // Nếu là Bác sĩ, chỉ xem lịch của chính mình (hoặc theo khoa)
-        // if (filter.doctorName) {
-        //     query = query.where('doctor', '==', filter.doctorName);
-        // }
+        if (filter.doctorName) {
+            query = query.where('doctor_name', '==', filter.doctorName);
+        }
 
         // Sắp xếp theo ngày tạo (Lưu ý: Cần tạo Index trong Firestore nếu dùng where + orderBy)
         // Tạm thời comment orderBy nếu chưa tạo index để tránh lỗi
