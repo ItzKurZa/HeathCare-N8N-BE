@@ -54,14 +54,14 @@ export const getHospitalStaffProfile = async (uid) => {
         // 1. Kiểm tra collection 'admins'
         const adminDoc = await firestore.collection('admins').doc(uid).get();
         if (adminDoc.exists) {
-            return adminDoc.data();
+            return { ...adminDoc.data(), role: 'Admin' };
         }
 
         // 2. Kiểm tra trong các sub-collection của Departments (Doctor, Nurse, Staff)
         // Sử dụng Collection Group Query để tìm trong tất cả các khoa
         const roleMapping = {
-            'Doctor': 'doctors', 
-            'Nurse': 'nurses', 
+            'Doctor': 'doctors',
+            'Nurse': 'nurses',
             'Staff': 'staffs'
         };
 
@@ -76,9 +76,8 @@ export const getHospitalStaffProfile = async (uid) => {
             if (!snapshot.empty) {
                 const doc = snapshot.docs[0];
                 // Trả về dữ liệu và đảm bảo role đúng chuẩn (nếu trong DB chưa lưu role chuẩn)
-                return { 
-                    id: doc.id, 
-                    ...doc.data(), 
+                return {
+                    ...doc.data(),
                     role: roleName // Gán cứng 'Doctor'/'Nurse'/'Staff' trả về cho đồng bộ
                 };
             }
@@ -112,7 +111,7 @@ export const getUserProfile = async (uid) => {
     }
 
     const staffProfile = await getHospitalStaffProfile(uid);
-        return staffProfile;
+    return staffProfile;
 };
 
 export const verifyIdToken = async (idToken) => {
