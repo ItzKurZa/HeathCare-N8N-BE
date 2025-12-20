@@ -1,13 +1,15 @@
 import express from 'express';
-import { getStatistics, getAllBookings, updateBookingStatus } from '../controllers/admin.controller.js';
+import { getStatistics, getAllBookings, updateBookingStatus, updateUserRoleController } from '../controllers/admin.controller.js';
 import { requireAuth } from '../../infrastructure/middlewares/auth.middleware.js';
+import { requireRole } from '../../infrastructure/middlewares/role.middleware.js';
 
 const router = express.Router();
 
-// Tất cả routes admin đều cần authentication
-router.get('/statistics', requireAuth, getStatistics);
-router.get('/bookings', requireAuth, getAllBookings);
-router.put('/bookings/:bookingId', requireAuth, updateBookingStatus);
+// Tất cả routes admin đều cần authentication và role admin
+router.get('/statistics', requireAuth, requireRole(['admin']), getStatistics);
+router.get('/bookings', requireAuth, requireRole(['admin']), getAllBookings);
+router.put('/bookings/:bookingId', requireAuth, requireRole(['admin']), updateBookingStatus);
+router.put('/users/:userId/role', requireAuth, requireRole(['admin']), updateUserRoleController);
 
 export default router;
 

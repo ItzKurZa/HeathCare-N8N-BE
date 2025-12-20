@@ -44,6 +44,7 @@ export const createUser = async ({ email, password, fullname, phone, cccd }) => 
     fullname: fullname || '',
     phone: phone || '',
     cccd: cccd || '',
+    role: 'patient', // Mặc định là patient
     createdAt: new Date().toISOString(),
   };
 
@@ -64,6 +65,127 @@ export const getUserProfile = async (uid) => {
 
   const doc = await firestore.collection('users').doc(uid).get();
   return doc.exists ? doc.data() : null;
+};
+
+/**
+ * Tạo hoặc cập nhật doctor trong catalog với user_id
+ */
+export const createOrUpdateDoctorInCatalog = async ({
+  doctor,
+  department,
+  user_id,
+  status = 'active'
+}) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+  
+  if (!doctor || !department) {
+    throw new Error('doctor and department are required');
+  }
+  
+  // Tìm doctor hiện có (theo doctor name + department)
+  const existingSnap = await firestore
+    .collection('doctors_catalog')
+    .where('doctor', '==', doctor.trim())
+    .where('department', '==', department.trim())
+    .get();
+  
+  const now = new Date().toISOString();
+  const doctorData = {
+    doctor: doctor.trim(),
+    department: department.trim(),
+    status: status.toLowerCase(),
+    user_id: user_id,  // ✅ Link đến user
+    updated_at: now
+  };
+  
+  if (existingSnap.empty) {
+    // Tạo mới
+    doctorData.created_at = now;
+    const docRef = await firestore.collection('doctors_catalog').add(doctorData);
+    console.log(`✅ Created doctor in catalog: ${doctor} - ${department} (user_id: ${user_id}, doc_id: ${docRef.id})`);
+  } else {
+    // Update existing (có thể có nhiều records, update tất cả)
+    const batch = firestore.batch();
+    existingSnap.docs.forEach(doc => {
+      batch.update(doc.ref, doctorData);
+    });
+    await batch.commit();
+    console.log(`✅ Updated ${existingSnap.size} doctor record(s) in catalog: ${doctor} - ${department} (user_id: ${user_id})`);
+  }
+  
+  return doctorData;
+};
+
+/**
+ * Lấy doctor catalog từ user_id
+ */
+export const getDoctorCatalogByUserId = async (userId) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+  
+  if (!userId) {
+    return null;
+  }
+  
+  const snap = await firestore
+    .collection('doctors_catalog')
+    .where('user_id', '==', userId)
+    .where('status', '==', 'active')
+    .limit(1)
+    .get();
+  
+  if (snap.empty) {
+    return null;
+  }
+  
+  return {
+    id: snap.docs[0].id,
+    ...snap.docs[0].data()
+  };
+};
+
+export const updateUserRole = async (uid, newRole, options = {}) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  const validRoles = ['patient', 'doctor', 'admin'];
+  if (!validRoles.includes(newRole)) {
+    throw new Error(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+  }
+
+  const userRef = firestore.collection('users').doc(uid);
+  const userDoc = await userRef.get();
+
+  if (!userDoc.exists) {
+    throw new Error('User not found');
+  }
+
+  const updateData = {
+    role: newRole,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Nếu là doctor, có thể set thêm doctor_name và department
+  if (newRole === 'doctor') {
+    if (!options.doctor_name || !options.department) {
+      throw new Error('doctor_name and department are required for doctor role');
+    }
+    
+    // ✅ Tạo hoặc update doctor trong catalog với user_id
+    await createOrUpdateDoctorInCatalog({
+      doctor: options.doctor_name,
+      department: options.department,
+      user_id: uid,  // ✅ Link đến user
+      status: 'active'
+    });
+    
+    // Update user profile
+    updateData.doctor_name = options.doctor_name;
+    updateData.department = options.department;
+  }
+
+  await userRef.update(updateData);
+
+  const updatedDoc = await userRef.get();
+  return updatedDoc.data();
 };
 
 export const verifyIdToken = async (idToken) => {
@@ -430,14 +552,31 @@ export const getRecentBookingsService = async ({
   };
 };
 
-export const getUserBookingsService = async (userId) => {
+export const getUserBookingsService = async (userId, options = {}) => {
   if (!firestore) throw new Error('Firestore not initialized');
   
-  const snap = await firestore
+  const { page = 1, limit = 10 } = options;
+  const offset = (page - 1) * limit;
+  
+  let query = firestore
     .collection('appointments')
     .where('userId', '==', userId)
-    .orderBy('createdAtUTC', 'desc')
-    .get();
+    .orderBy('createdAtUTC', 'desc');
+  
+  // Get total count
+  const totalSnap = await query.get();
+  const total = totalSnap.size;
+  
+  // Apply pagination
+  if (offset > 0) {
+    const offsetSnap = await query.limit(offset).get();
+    const lastDoc = offsetSnap.docs[offsetSnap.docs.length - 1];
+    if (lastDoc) {
+      query = query.startAfter(lastDoc);
+    }
+  }
+  
+  const snap = await query.limit(limit).get();
 
   const bookings = [];
   snap.forEach((doc) => {
@@ -447,7 +586,15 @@ export const getUserBookingsService = async (userId) => {
     });
   });
 
-  return bookings;
+  return {
+    bookings,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };
 
 export const getBookingByIdService = async (bookingId) => {
@@ -677,10 +824,25 @@ export const updateBookingService = async (bookingId, updates) => {
   await ref.update(updateData);
 
   const updatedDoc = await ref.get();
-  return {
+  const updatedBookingData = {
     id: updatedDoc.id,
     ...updatedDoc.data(),
   };
+  
+  // ✅ Gửi email thông báo hủy lịch nếu status = canceled
+  if (updateData.status === 'canceled') {
+    try {
+      const { sendCancelBookingEmail } = await import('./n8n.services.js');
+      // Gửi email bất đồng bộ (không chờ kết quả)
+      sendCancelBookingEmail(updatedBookingData).catch(err => {
+        console.error('❌ Failed to send cancel booking email:', err.message);
+      });
+    } catch (err) {
+      console.error('❌ Error importing sendCancelBookingEmail:', err.message);
+    }
+  }
+  
+  return updatedBookingData;
 };
 
 export const getStatisticsService = async () => {
@@ -720,9 +882,33 @@ export const getStatisticsService = async () => {
       departmentCounts[booking.department] = (departmentCounts[booking.department] || 0) + 1;
     }
 
+    // Xử lý startTimeLocal an toàn - có thể là string, Date object, hoặc timestamp
     if (booking.startTimeLocal) {
-      const date = booking.startTimeLocal.split(' ')[0];
-      dateCounts[date] = (dateCounts[date] || 0) + 1;
+      let dateStr = '';
+      
+      if (typeof booking.startTimeLocal === 'string') {
+        // Nếu là string, split để lấy date
+        dateStr = booking.startTimeLocal.split(' ')[0];
+      } else if (booking.startTimeLocal instanceof Date) {
+        // Nếu là Date object, format thành YYYY-MM-DD
+        const year = booking.startTimeLocal.getFullYear();
+        const month = String(booking.startTimeLocal.getMonth() + 1).padStart(2, '0');
+        const day = String(booking.startTimeLocal.getDate()).padStart(2, '0');
+        dateStr = `${year}-${month}-${day}`;
+      } else if (typeof booking.startTimeLocal === 'number' || booking.startTimeLocal.toDate) {
+        // Nếu là timestamp hoặc Firestore Timestamp
+        const date = booking.startTimeLocal.toDate ? booking.startTimeLocal.toDate() : new Date(booking.startTimeLocal);
+        if (!isNaN(date.getTime())) {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          dateStr = `${year}-${month}-${day}`;
+        }
+      }
+      
+      if (dateStr) {
+        dateCounts[dateStr] = (dateCounts[dateStr] || 0) + 1;
+      }
     }
   });
 
@@ -791,7 +977,7 @@ export const getAllBookingsService = async (filters = {}) => {
   return bookings;
 };
 
-export const updateBookingStatusService = async (bookingId, status) => {
+export const updateBookingStatusService = async (bookingId, updates) => {
   if (!firestore) throw new Error('Firestore not initialized');
 
   const ref = firestore.collection('appointments').doc(bookingId);
@@ -805,39 +991,115 @@ export const updateBookingStatusService = async (bookingId, status) => {
     updatedAtUTC: new Date().toISOString(),
   };
 
-  // Map status từ frontend format sang backend format
-  const backendStatus = status === 'cancelled' ? 'canceled' : status;
-  updateData.status = backendStatus;
+  // Nếu có status, cập nhật status
+  if (updates.status) {
+    const backendStatus = updates.status === 'cancelled' ? 'canceled' : updates.status;
+    updateData.status = backendStatus;
 
-  // Nếu cancel thì set endTimeUTC
-  if (backendStatus === 'canceled') {
-    updateData.endTimeUTC = new Date().toISOString();
-    updateData.reminderAtUTC = '';
-    updateData.reminderSentAtUTC = '';
+    // Nếu cancel thì set endTimeUTC
+    if (backendStatus === 'canceled') {
+      updateData.endTimeUTC = new Date().toISOString();
+      updateData.reminderAtUTC = '';
+      updateData.reminderSentAtUTC = '';
+    }
   }
 
+  // Nếu có medical_record, cập nhật hồ sơ bệnh án
+  if (updates.medical_record !== undefined) {
+    updateData.medical_record = String(updates.medical_record || '').trim();
+  }
+
+  const existingDataBeforeUpdate = doc.data(); // Lưu data cũ để so sánh
+  
   await ref.update(updateData);
 
   const updatedDoc = await ref.get();
-  return {
+  const updatedBookingData = {
     id: updatedDoc.id,
     ...updatedDoc.data(),
   };
+  
+  // ✅ Gửi email thông báo
+  try {
+    const { sendCancelBookingEmail, sendUpdateBookingEmail } = await import('./n8n.services.js');
+    
+    if (updateData.status === 'canceled') {
+      // Gửi email hủy lịch
+      sendCancelBookingEmail(updatedBookingData).catch(err => {
+        console.error('❌ Failed to send cancel booking email:', err.message);
+      });
+    } else if (Object.keys(updateData).length > 1 && updateData.status) {
+      // Gửi email cập nhật status (nếu không phải cancel)
+      // Note: updateBookingStatusService chỉ update status hoặc medical_record
+      // Không có thay đổi về time/doctor/department nên không cần detect changes
+      // Chỉ gửi email nếu status thay đổi (không phải cancel)
+      if (updateData.status !== existingDataBeforeUpdate.status && updateData.status !== 'canceled') {
+        sendUpdateBookingEmail(updatedBookingData, [`Trạng thái: ${existingDataBeforeUpdate.status} → ${updateData.status}`]).catch(err => {
+          console.error('❌ Failed to send update booking email:', err.message);
+        });
+      }
+    }
+  } catch (err) {
+    console.error('❌ Error importing email functions:', err.message);
+  }
+  
+  return updatedBookingData;
 };
 
 export const getDoctorBookingsService = async (filters) => {
   if (!firestore) throw new Error('Firestore not initialized');
 
+  const doctorName = filters.doctor;
+  const { page = 1, limit = 10 } = filters;
+  const offset = (page - 1) * limit;
+
+  if (!doctorName) {
+    throw new Error('Doctor name is required');
+  }
+
+  // Theo RBAC model: Doctor chỉ xem lịch của chính mình (không xem lịch trong khoa)
+  // Filter trực tiếp theo doctor name
   let query = firestore
     .collection('appointments')
-    .where('doctor', '==', filters.doctor);
+    .where('doctor', '==', doctorName);
 
   if (filters.status) {
     const status = filters.status === 'cancelled' ? 'canceled' : filters.status;
     query = query.where('status', '==', status);
   }
 
-  const snap = await query.orderBy('createdAtUTC', 'desc').get();
+  // Get total count (before pagination)
+  const totalSnap = await query.orderBy('createdAtUTC', 'desc').get();
+  let totalBookings = [];
+  totalSnap.forEach((doc) => {
+    const data = doc.data();
+    // Filter by date if provided
+    if (filters.dateFrom || filters.dateTo) {
+      if (data.startTimeLocal) {
+        const date = typeof data.startTimeLocal === 'string' 
+          ? data.startTimeLocal.split(' ')[0]
+          : '';
+        if (filters.dateFrom && date < filters.dateFrom) return;
+        if (filters.dateTo && date > filters.dateTo) return;
+      } else {
+        return; // Skip if no startTimeLocal
+      }
+    }
+    totalBookings.push(doc.id);
+  });
+  const total = totalBookings.length;
+
+  // Apply pagination
+  query = query.orderBy('createdAtUTC', 'desc');
+  if (offset > 0) {
+    const offsetSnap = await query.limit(offset).get();
+    const lastDoc = offsetSnap.docs[offsetSnap.docs.length - 1];
+    if (lastDoc) {
+      query = query.startAfter(lastDoc);
+    }
+  }
+  
+  const snap = await query.limit(limit).get();
 
   const bookings = [];
   snap.forEach((doc) => {
@@ -846,7 +1108,9 @@ export const getDoctorBookingsService = async (filters) => {
     // Filter by date if provided
     if (filters.dateFrom || filters.dateTo) {
       if (data.startTimeLocal) {
-        const date = data.startTimeLocal.split(' ')[0];
+        const date = typeof data.startTimeLocal === 'string' 
+          ? data.startTimeLocal.split(' ')[0]
+          : '';
         if (filters.dateFrom && date < filters.dateFrom) return;
         if (filters.dateTo && date > filters.dateTo) return;
       } else {
@@ -860,7 +1124,15 @@ export const getDoctorBookingsService = async (filters) => {
     });
   });
 
-  return bookings;
+  return {
+    bookings,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };
 
 export const getDoctorScheduleService = async (doctorName, dateFrom, dateTo) => {

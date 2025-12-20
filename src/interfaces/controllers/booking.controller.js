@@ -43,12 +43,27 @@ const transformBooking = (booking) => {
     reason: booking.note || 'Khám bệnh',
     status: booking.status === 'canceled' ? 'cancelled' : booking.status,
     notes: booking.note,
+    medical_record: booking.medical_record || booking.medicalRecord || undefined, // Hồ sơ bệnh án
     created_at: booking.createdAtUTC,
   };
 };
 
 export const submitBooking = async (req, res, next) => {
   try {
+    // Kiểm tra role: Doctor không được đặt lịch (theo RBAC model)
+    if (req.user && req.user.uid) {
+      const { getUserProfile } = await import('../../infrastructure/services/firebase.services.js');
+      const userProfile = await getUserProfile(req.user.uid);
+      const userRole = userProfile?.role || 'patient';
+      
+      if (userRole === 'doctor') {
+        return res.status(403).json({
+          success: false,
+          message: 'Bác sĩ không thể đặt lịch khám. Vui lòng liên hệ quản trị viên nếu cần hỗ trợ.',
+        });
+      }
+    }
+
     const booking = await processBookingService(req.body); 
     let notifyOk = false;
     let notifyError = null;
@@ -154,14 +169,21 @@ export const getRecentBookings = async (req, res, next) => {
 export const getUserBookings = async (req, res, next) => {
   try {
     const { userId } = req.params;
-    const bookings = await getUserBookingsService(userId);
+    const { page, limit } = req.query;
+    
+    const options = {};
+    if (page) options.page = parseInt(page, 10);
+    if (limit) options.limit = parseInt(limit, 10);
+    
+    const result = await getUserBookingsService(userId, options);
     
     // Transform data để match với frontend format
-    const transformedBookings = bookings.map(transformBooking);
+    const transformedBookings = result.bookings.map(transformBooking);
 
     return res.json({
       success: true,
       bookings: transformedBookings,
+      pagination: result.pagination,
     });
   } catch (err) {
     next(err);
@@ -170,6 +192,22 @@ export const getUserBookings = async (req, res, next) => {
 
 export const updateBooking = async (req, res, next) => {
   try {
+    // Kiểm tra role: Doctor không được hủy lịch (theo RBAC model)
+    if (req.user && req.user.uid) {
+      const { getUserProfile } = await import('../../infrastructure/services/firebase.services.js');
+      const userProfile = await getUserProfile(req.user.uid);
+      const userRole = userProfile?.role || 'patient';
+      
+      // Kiểm tra nếu đang hủy lịch
+      const isCancelling = req.body.status === 'cancelled' || req.body.status === 'canceled';
+      if (isCancelling && userRole === 'doctor') {
+        return res.status(403).json({
+          success: false,
+          message: 'Bác sĩ không thể hủy lịch hẹn. Vui lòng liên hệ quản trị viên nếu cần hỗ trợ.',
+        });
+      }
+    }
+
     const { bookingId } = req.params;
     const updates = req.body;
     
@@ -277,7 +315,23 @@ export const updateBookingByCode = async (req, res, next) => {
     }
     
     // Kiểm tra nếu đang hủy lịch
-    if (updates.status === 'cancelled' || updates.status === 'canceled') {
+    const isCancelling = updates.status === 'cancelled' || updates.status === 'canceled';
+    
+    // Nếu có user đăng nhập, kiểm tra role (Doctor không được hủy)
+    if (req.user && req.user.uid && isCancelling) {
+      const { getUserProfile } = await import('../../infrastructure/services/firebase.services.js');
+      const userProfile = await getUserProfile(req.user.uid);
+      const userRole = userProfile?.role || 'patient';
+      
+      if (userRole === 'doctor') {
+        return res.status(403).json({
+          success: false,
+          message: 'Bác sĩ không thể hủy lịch hẹn. Vui lòng liên hệ quản trị viên nếu cần hỗ trợ.',
+        });
+      }
+    }
+    
+    if (isCancelling) {
       const updatedBooking = await updateBookingService(booking.id, { status: 'canceled' });
       const transformed = transformBooking(updatedBooking);
       return res.json({
