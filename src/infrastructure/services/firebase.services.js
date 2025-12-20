@@ -46,10 +46,52 @@ export const createUser = async ({ email, password, fullname, phone, cccd, role,
     return { uid: userRecord.uid, email };
 };
 
-export const getUserProfile = async (uid) => {
+// [HÀM 1] Lấy thông tin Nhân viên Bệnh viện (Admin, Doctor, Nurse, Staff)
+export const getHospitalStaffProfile = async (uid) => {
     if (!firestore) return null;
-    const doc = await firestore.collection('users').doc(uid).get();
-    return doc.exists ? doc.data() : null;
+
+    try {
+        // 1. Kiểm tra collection 'admins'
+        const adminDoc = await firestore.collection('admins').doc(uid).get();
+        if (adminDoc.exists) {
+            return { ...adminDoc.data(), role: 'admin' };
+        }
+
+        // 2. Kiểm tra trong các sub-collection của Departments (Doctor, Nurse, Staff)
+        // Sử dụng Collection Group Query để tìm trong tất cả các khoa
+        const staffRoles = ['Doctor', 'Nurse', 'Staff'];
+        const departmentRoles = ['doctors', 'nurses', 'staffs'];
+        
+        for (const role of staffRoles) {
+            const snapshot = await firestore.collectionGroup(departmentRoles[staffRoles.indexOf(role)])
+                .where('uid', '==', uid) // Tìm theo field uid trong document
+                .limit(1)
+                .get();
+
+            if (!snapshot.empty) {
+                // Trả về dữ liệu tìm thấy (đã bao gồm role bên trong do lúc create ta đã lưu)
+                return snapshot.docs[0].data();
+            }
+        }
+
+        return null; // Không phải nhân viên bệnh viện
+    } catch (error) {
+        console.error('Lỗi khi lấy thông tin nhân viên:', error);
+        return null;
+    }
+};
+
+// [HÀM 2] Lấy thông tin Bệnh nhân (Users thông thường)
+export const getPatientProfile = async (uid) => {
+    if (!firestore) return null;
+
+    try {
+        const userDoc = await firestore.collection('users').doc(uid).get();
+        return userDoc.exists ? userDoc.data() : null;
+    } catch (error) {
+        console.error('Lỗi khi lấy thông tin bệnh nhân:', error);
+        return null;
+    }
 };
 
 export const verifyIdToken = async (idToken) => {
