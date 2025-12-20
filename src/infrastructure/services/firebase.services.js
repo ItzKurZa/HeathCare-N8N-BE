@@ -313,7 +313,7 @@ export const getAllBookingsFromFirestore = async (filter = {}) => {
         }
         // Lưu ý: Đảm bảo field tên bác sĩ trong DB đúng là 'doctor' (hoặc sửa thành 'doctorName' nếu cần)
         if (filter.doctorName) {
-            query = query.where('doctor', '==', filter.doctorName);
+            query = query.where('doctor_name', '==', filter.doctorName);
         }
         
         const snapshot = await query.get();
