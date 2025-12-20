@@ -31,7 +31,6 @@ export const getBookings = async (uid) => {
     } else if (role === 'Doctor' || role === 'doctors') {
         // Bác sĩ chỉ thấy lịch của mình
         filter = { doctorName: doctorName }; 
-        console.log(`⚠️ Đang là Bác sĩ (${doctorName})`);
         // Hoặc nếu muốn thấy cả khoa: filter = { department: department };
     } else if (role === 'Nurse' || role === 'nurses' || role === 'Staff' || role === 'staffs') {
         // Y tá/Nhân viên thấy lịch của cả Khoa
