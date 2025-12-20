@@ -64,9 +64,10 @@ export const getHospitalStaffProfile = async (uid) => {
 
         for (const role of staffRoles) {
             const snapshot = await firestore.collectionGroup(departmentRoles[staffRoles.indexOf(role)])
-                .doc(uid)
+                .where('uid', '==', uid) 
+                .limit(1)
                 .get();
-
+                
             if (!snapshot.empty) {
                 // Trả về dữ liệu tìm thấy (đã bao gồm role bên trong do lúc create ta đã lưu)
                 return snapshot.docs[0].data();
