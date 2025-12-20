@@ -54,23 +54,33 @@ export const getHospitalStaffProfile = async (uid) => {
         // 1. Kiểm tra collection 'admins'
         const adminDoc = await firestore.collection('admins').doc(uid).get();
         if (adminDoc.exists) {
-            return { ...adminDoc.data(), role: 'admin' };
+            return adminDoc.data();
         }
 
         // 2. Kiểm tra trong các sub-collection của Departments (Doctor, Nurse, Staff)
         // Sử dụng Collection Group Query để tìm trong tất cả các khoa
-        const staffRoles = ['Doctor', 'Nurse', 'Staff'];
-        const departmentRoles = ['doctors', 'nurses', 'staffs'];
+        const roleMapping = {
+            'Doctor': 'doctors', 
+            'Nurse': 'nurses', 
+            'Staff': 'staffs'
+        };
 
-        for (const role of staffRoles) {
-            const snapshot = await firestore.collectionGroup(departmentRoles[staffRoles.indexOf(role)])
+        // Duyệt qua từng cặp key-value
+        for (const [roleName, collectionName] of Object.entries(roleMapping)) {
+            // collectionName sẽ lần lượt là 'doctors', 'nurses', 'staffs'
+            const snapshot = await firestore.collectionGroup(collectionName)
                 .where('uid', '==', uid)
                 .limit(1)
                 .get();
 
             if (!snapshot.empty) {
-                // Trả về dữ liệu tìm thấy (đã bao gồm role bên trong do lúc create ta đã lưu)
-                return snapshot.docs[0].data();
+                const doc = snapshot.docs[0];
+                // Trả về dữ liệu và đảm bảo role đúng chuẩn (nếu trong DB chưa lưu role chuẩn)
+                return { 
+                    id: doc.id, 
+                    ...doc.data(), 
+                    role: roleName // Gán cứng 'Doctor'/'Nurse'/'Staff' trả về cho đồng bộ
+                };
             }
         }
 
@@ -95,15 +105,12 @@ export const getPatientProfile = async (uid) => {
 };
 
 // [HÀM TỔNG HỢP] Giữ lại hàm này để Controller hiện tại không bị lỗi
-// Logic: Ưu tiên tìm nhân viên trước, nếu không thấy thì tìm bệnh nhân
 export const getUserProfile = async (uid) => {
-    // Nếu không phải nhân viên, tìm trong danh sách bệnh nhân
     const patientProfile = await getPatientProfile(uid);
     if (patientProfile) {
         return patientProfile;
     }
 
-    // Thử tìm trong hệ thống nhân viên trước
     const staffProfile = await getHospitalStaffProfile(uid);
         return staffProfile;
 };
