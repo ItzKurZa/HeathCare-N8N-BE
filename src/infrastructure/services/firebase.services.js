@@ -64,10 +64,10 @@ export const getHospitalStaffProfile = async (uid) => {
 
         for (const role of staffRoles) {
             const snapshot = await firestore.collectionGroup(departmentRoles[staffRoles.indexOf(role)])
-                .where('uid', '==', uid) 
+                .where('uid', '==', uid)
                 .limit(1)
                 .get();
-                
+
             if (!snapshot.empty) {
                 // Trả về dữ liệu tìm thấy (đã bao gồm role bên trong do lúc create ta đã lưu)
                 return snapshot.docs[0].data();
@@ -97,15 +97,15 @@ export const getPatientProfile = async (uid) => {
 // [HÀM TỔNG HỢP] Giữ lại hàm này để Controller hiện tại không bị lỗi
 // Logic: Ưu tiên tìm nhân viên trước, nếu không thấy thì tìm bệnh nhân
 export const getUserProfile = async (uid) => {
-    // Thử tìm trong hệ thống nhân viên trước
-    const staffProfile = await getHospitalStaffProfile(uid);
-    if (staffProfile) {
-        return staffProfile;
-    }
-
     // Nếu không phải nhân viên, tìm trong danh sách bệnh nhân
     const patientProfile = await getPatientProfile(uid);
-    return patientProfile;
+    if (patientProfile) {
+        return patientProfile;
+    }
+
+    // Thử tìm trong hệ thống nhân viên trước
+    const staffProfile = await getHospitalStaffProfile(uid);
+        return staffProfile;
 };
 
 export const verifyIdToken = async (idToken) => {
