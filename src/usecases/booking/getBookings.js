@@ -1,5 +1,5 @@
 // src/usecases/booking/getBookings.js
-import { getAllBookingsFromFirestore, getPatientProfile } from '../../infrastructure/services/firebase.services.js';
+import { getAllBookingsFromFirestore, getUserProfile } from '../../infrastructure/services/firebase.services.js';
 
 export const getBookings = async (uid) => {
     // 1. Lấy thông tin chi tiết của người dùng đang đăng nhập để biết Role, Department, Tên
@@ -10,7 +10,7 @@ export const getBookings = async (uid) => {
     // Logic fallback đơn giản nếu getUserProfile chỉ tìm trong 'users':
     // Chúng ta sẽ cần query thêm nếu không tìm thấy, nhưng ở đây tôi sẽ dùng logic filter cơ bản.
     
-    const userProfile = await getPatientProfile(uid); 
+    const userProfile = await getUserProfile(uid); 
     // Nếu getUserProfile trả về null (do user nằm ở collection khác), ta có thể cần check bảng admin/staff
     // Ở đây tôi giả sử hệ thống đã lưu Role vào Custom Claims hoặc userProfile lấy được hết.
 
