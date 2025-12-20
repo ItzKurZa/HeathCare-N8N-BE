@@ -309,17 +309,20 @@ export const getAllBookingsFromFirestore = async (filter = {}) => {
             query = query.where('department', '==', filter.department);
         }
 
-        // Nếu là Bác sĩ, chỉ xem lịch của chính mình (hoặc theo khoa)
-        if (filter.doctorName) {
-            query = query.where('doctor', '==', filter.doctorName);
-        }
+        // // Nếu là Bác sĩ, chỉ xem lịch của chính mình (hoặc theo khoa)
+        // if (filter.doctorName) {
+        //     query = query.where('doctor', '==', filter.doctorName);
+        // }
 
         // Sắp xếp theo ngày tạo (Lưu ý: Cần tạo Index trong Firestore nếu dùng where + orderBy)
         // Tạm thời comment orderBy nếu chưa tạo index để tránh lỗi
         // query = query.orderBy('createdAt', 'desc');
 
         const snapshot = await query.get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        console.log(`Tìm thấy ${data.length} bookings`); // [DEBUG]
+        return data;
     } catch (error) {
         console.error("Error fetching all bookings:", error);
         return [];
