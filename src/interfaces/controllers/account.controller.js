@@ -20,7 +20,9 @@ export const signin = async (req, res, next) => {
     try {
         const { email, password } = req.body;
         const result = await signInAccount({ email, password });
-        res.status(200).json({ success: true, auth: result });
+        const uid = result.user.uid;
+        const profile = await getUserProfileData({ uid });
+        res.status(200).json({ success: true, auth: result, user: profile });
     } catch (err) {
         next(err);
     }
