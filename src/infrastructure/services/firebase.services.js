@@ -297,34 +297,75 @@ export const getDepartmentsAndDoctorsFromFirestore = async () => {
 };
 
 // [THÊM MỚI] Lấy danh sách Booking có phân quyền (Collection Group Query)
+// [Cập nhật] Thêm logic lấy thông tin User
 export const getAllBookingsFromFirestore = async (filter = {}) => {
     if (!firestore) return [];
 
     try {
-        // collectionGroup('Books') cho phép tìm trong tất cả sub-collection tên là 'Books'
+        console.log("🔄 Đang lấy danh sách booking từ tất cả các Collection 'Books'...");
+        
+        // 1. Dùng collectionGroup để quét tất cả booking trong hệ thống
         let query = firestore.collectionGroup('Books');
 
-        // Áp dụng bộ lọc
+        // Logic bộ lọc (Giữ nguyên)
         if (filter.department) {
             query = query.where('department', '==', filter.department);
         }
-
-        // // Nếu là Bác sĩ, chỉ xem lịch của chính mình (hoặc theo khoa)
+        // Lưu ý: Đảm bảo field tên bác sĩ trong DB đúng là 'doctor' (hoặc sửa thành 'doctorName' nếu cần)
         if (filter.doctorName) {
-            query = query.where('doctor_name', '==', filter.doctorName);
+            query = query.where('doctor', '==', filter.doctorName);
         }
-
-        // Sắp xếp theo ngày tạo (Lưu ý: Cần tạo Index trong Firestore nếu dùng where + orderBy)
-        // Tạm thời comment orderBy nếu chưa tạo index để tránh lỗi
-        // query = query.orderBy('createdAt', 'desc');
-
-        const snapshot = await query.get();
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        console.log(`Tìm thấy ${data.length} bookings`); // [DEBUG]
-        return data;
+        const snapshot = await query.get();
+        
+        // 2. Map dữ liệu & Trích xuất UID từ đường dẫn cha
+        const rawBookings = snapshot.docs.map(doc => {
+            const data = doc.data();
+            
+            // [QUAN TRỌNG]: Lấy UID từ data HOẶC lấy từ Document cha (User UID)
+            // Cấu trúc: Bookings/{uid}/Books/{bookId}
+            // doc.ref.parent = Collection 'Books'
+            // doc.ref.parent.parent = Document '{uid}'
+            const parentDoc = doc.ref.parent.parent;
+            const uid = data.userId || data.uid || (parentDoc ? parentDoc.id : null);
+
+            return { 
+                id: doc.id, 
+                uid: uid, // Luôn đảm bảo có UID
+                ...data 
+            };
+        });
+
+        // 3. Ghép thông tin (JOIN) với Collection 'users'
+        const enrichedBookings = await Promise.all(rawBookings.map(async (booking) => {
+            if (!booking.uid) {
+                return { ...booking, patientName: 'Lỗi: Không tìm thấy UID' };
+            }
+
+            try {
+                const userDoc = await firestore.collection('users').doc(booking.uid).get();
+                
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    return {
+                        ...booking,
+                        patientName: userData.fullname || userData.name || userData.displayName || 'Bệnh nhân (Chưa có tên)',
+                        patientPhone: userData.phone || userData.phoneNumber || '',
+                        patientEmail: userData.email || ''
+                    };
+                }
+            } catch (err) {
+                console.error(`⚠️ Lỗi khi lấy user ${booking.uid}:`, err);
+            }
+
+            return { ...booking, patientName: 'Khách vãng lai / User đã xóa' };
+        }));
+
+        console.log(`✅ Đã tải ${enrichedBookings.length} lịch hẹn.`);
+        return enrichedBookings;
+
     } catch (error) {
-        console.error("Error fetching all bookings:", error);
+        console.error("❌ Lỗi getAllBookingsFromFirestore:", error);
         return [];
     }
 };
