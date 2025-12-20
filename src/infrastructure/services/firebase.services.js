@@ -61,11 +61,10 @@ export const getHospitalStaffProfile = async (uid) => {
         // Sử dụng Collection Group Query để tìm trong tất cả các khoa
         const staffRoles = ['Doctor', 'Nurse', 'Staff'];
         const departmentRoles = ['doctors', 'nurses', 'staffs'];
-        
+
         for (const role of staffRoles) {
             const snapshot = await firestore.collectionGroup(departmentRoles[staffRoles.indexOf(role)])
-                .where('uid', '==', uid) // Tìm theo field uid trong document
-                .limit(1)
+                .doc(uid)
                 .get();
 
             if (!snapshot.empty) {
@@ -302,7 +301,7 @@ export const getAllBookingsFromFirestore = async (filter = {}) => {
         if (filter.department) {
             query = query.where('department', '==', filter.department);
         }
-        
+
         // Nếu là Bác sĩ, chỉ xem lịch của chính mình (hoặc theo khoa)
         if (filter.doctorName) {
             query = query.where('doctor', '==', filter.doctorName);
@@ -337,7 +336,7 @@ export const getAllMedicalFilesFromFirestore = async () => {
                 id: doc.id,
                 ...data,
                 // Lấy ID của document cha (User ID) từ đường dẫn reference
-                userId: doc.ref.parent.parent.id, 
+                userId: doc.ref.parent.parent.id,
                 UploadDate: data.UploadDate?.toDate ? data.UploadDate.toDate() : data.UploadDate
             };
         });
