@@ -20,7 +20,7 @@ const formatPhoneToE164 = (phone) => {
 const sanitize = (v) =>
   v === undefined || v === null ? '' : String(v).trim();
 
-export const createUser = async ({ email, password, fullname, phone, cccd }) => {
+export const createUser = async ({ email, password, fullname, phone, cccd, role, doctor_name, department, departmentId }) => {
   if (!firebaseAdmin || !firebaseAdmin.auth) {
     throw new Error('Firebase Admin not initialized');
   }
@@ -44,9 +44,16 @@ export const createUser = async ({ email, password, fullname, phone, cccd }) => 
     fullname: fullname || '',
     phone: phone || '',
     cccd: cccd || '',
-    role: 'patient', // Mặc định là patient
+    role: role || 'patient', // Mặc định là patient
     createdAt: new Date().toISOString(),
   };
+
+  // Nếu là doctor, thêm thông tin doctor
+  if (role === 'doctor') {
+    if (doctor_name) userData.doctor_name = doctor_name;
+    if (department) userData.department = department;
+    if (departmentId) userData.departmentId = departmentId;
+  }
 
   if (!firestore) {
     throw new Error('Firestore not initialized');
@@ -56,6 +63,32 @@ export const createUser = async ({ email, password, fullname, phone, cccd }) => 
     .collection('users')
     .doc(userRecord.uid)
     .set(userData, { merge: true });
+
+  // Nếu là doctor, tự động tạo trong doctors_catalog
+  if (role === 'doctor' && doctor_name && (department || departmentId)) {
+    try {
+      // Nếu có departmentId, lấy department name từ departments collection
+      let deptName = department;
+      if (departmentId && !department) {
+        const deptDoc = await firestore.collection('departments').doc(departmentId).get();
+        if (deptDoc.exists) {
+          deptName = deptDoc.data().name;
+        }
+      }
+
+      if (deptName) {
+        await createOrUpdateDoctorInCatalog({
+          doctor: doctor_name,
+          department: deptName,
+          user_id: userRecord.uid,
+          departmentId: departmentId,
+        });
+      }
+    } catch (err) {
+      console.error('Warning: Failed to create doctor in catalog:', err.message);
+      // Không throw error để không block user creation
+    }
+  }
 
   return userData;
 };
@@ -68,11 +101,12 @@ export const getUserProfile = async (uid) => {
 };
 
 /**
- * Tạo hoặc cập nhật doctor trong catalog với user_id
+ * Tạo hoặc cập nhật doctor trong catalog với user_id và departmentId
  */
 export const createOrUpdateDoctorInCatalog = async ({
   doctor,
   department,
+  departmentId,
   user_id,
   status = 'active'
 }) => {
@@ -82,27 +116,64 @@ export const createOrUpdateDoctorInCatalog = async ({
     throw new Error('doctor and department are required');
   }
   
-  // Tìm doctor hiện có (theo doctor name + department)
-  const existingSnap = await firestore
-    .collection('doctors_catalog')
-    .where('doctor', '==', doctor.trim())
-    .where('department', '==', department.trim())
-    .get();
+  // Nếu không có departmentId, tìm hoặc tạo department
+  let finalDepartmentId = departmentId;
+  if (!finalDepartmentId) {
+    const deptSnap = await firestore
+      .collection('departments')
+      .where('name', '==', department.trim())
+      .get();
+
+    if (deptSnap.empty) {
+      // Tạo department mới
+      const deptRef = firestore.collection('departments').doc();
+      finalDepartmentId = deptRef.id;
+      await deptRef.set({
+        id: finalDepartmentId,
+        name: department.trim(),
+        description: `Khoa ${department.trim()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      finalDepartmentId = deptSnap.docs[0].id;
+    }
+  }
+  
+  // Tìm doctor hiện có (ưu tiên theo user_id, sau đó theo doctor name + department)
+  let existingSnap;
+  if (user_id) {
+    existingSnap = await firestore
+      .collection('doctors_catalog')
+      .where('user_id', '==', user_id)
+      .get();
+  }
+  
+  if (!existingSnap || existingSnap.empty) {
+    existingSnap = await firestore
+      .collection('doctors_catalog')
+      .where('doctor', '==', doctor.trim())
+      .where('department', '==', department.trim())
+      .get();
+  }
   
   const now = new Date().toISOString();
   const doctorData = {
     doctor: doctor.trim(),
     department: department.trim(),
+    departmentId: finalDepartmentId,  // ✅ Link đến department
     status: status.toLowerCase(),
     user_id: user_id,  // ✅ Link đến user
-    updated_at: now
+    updatedAt: now
   };
   
   if (existingSnap.empty) {
     // Tạo mới
-    doctorData.created_at = now;
-    const docRef = await firestore.collection('doctors_catalog').add(doctorData);
-    console.log(`✅ Created doctor in catalog: ${doctor} - ${department} (user_id: ${user_id}, doc_id: ${docRef.id})`);
+    doctorData.id = firestore.collection('doctors_catalog').doc().id;
+    doctorData.createdAt = now;
+    const docRef = await firestore.collection('doctors_catalog').doc(doctorData.id);
+    await docRef.set(doctorData);
+    console.log(`✅ Created doctor in catalog: ${doctor} - ${department} (user_id: ${user_id}, departmentId: ${finalDepartmentId}, doc_id: ${doctorData.id})`);
   } else {
     // Update existing (có thể có nhiều records, update tất cả)
     const batch = firestore.batch();
@@ -110,11 +181,14 @@ export const createOrUpdateDoctorInCatalog = async ({
       batch.update(doc.ref, doctorData);
     });
     await batch.commit();
-    console.log(`✅ Updated ${existingSnap.size} doctor record(s) in catalog: ${doctor} - ${department} (user_id: ${user_id})`);
+    console.log(`✅ Updated ${existingSnap.size} doctor record(s) in catalog: ${doctor} - ${department} (user_id: ${user_id}, departmentId: ${finalDepartmentId})`);
   }
   
   return doctorData;
 };
+
+// Alias để tương thích với code cũ
+export const createOrUpdateDoctorCatalog = createOrUpdateDoctorInCatalog;
 
 /**
  * Lấy doctor catalog từ user_id
@@ -126,12 +200,22 @@ export const getDoctorCatalogByUserId = async (userId) => {
     return null;
   }
   
-  const snap = await firestore
+  // Ưu tiên tìm với status = 'active'
+  let snap = await firestore
     .collection('doctors_catalog')
     .where('user_id', '==', userId)
     .where('status', '==', 'active')
     .limit(1)
     .get();
+  
+  // Nếu không tìm thấy với status active, tìm bất kỳ status nào
+  if (snap.empty) {
+    snap = await firestore
+      .collection('doctors_catalog')
+      .where('user_id', '==', userId)
+      .limit(1)
+      .get();
+  }
   
   if (snap.empty) {
     return null;
@@ -169,10 +253,33 @@ export const updateUserRole = async (uid, newRole, options = {}) => {
       throw new Error('doctor_name and department are required for doctor role');
     }
     
-    // ✅ Tạo hoặc update doctor trong catalog với user_id
+    // Tìm hoặc tạo department để lấy departmentId
+    let departmentId = null;
+    const deptSnap = await firestore
+      .collection('departments')
+      .where('name', '==', options.department.trim())
+      .get();
+
+    if (deptSnap.empty) {
+      // Tạo department mới
+      const deptRef = firestore.collection('departments').doc();
+      departmentId = deptRef.id;
+      await deptRef.set({
+        id: departmentId,
+        name: options.department.trim(),
+        description: `Khoa ${options.department.trim()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      departmentId = deptSnap.docs[0].id;
+    }
+    
+    // ✅ Tạo hoặc update doctor trong catalog với user_id và departmentId
     await createOrUpdateDoctorInCatalog({
       doctor: options.doctor_name,
       department: options.department,
+      departmentId: departmentId,
       user_id: uid,  // ✅ Link đến user
       status: 'active'
     });
@@ -1364,4 +1471,115 @@ export const updateBookingFromN8N = async (payload) => {
     id: updatedDoc.id,
     ...updatedDoc.data(),
   };
+};
+
+/**
+ * Lấy lịch hôm nay cho tất cả bác sĩ (dùng cho N8N automation)
+ * @param {string} targetDate - Format: YYYY-MM-DD (mặc định: hôm nay)
+ * @returns {Promise<Array>} Array of doctor schedules with appointments
+ */
+export const getTodayScheduleForAllDoctors = async (targetDate) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  // Parse target date hoặc dùng hôm nay
+  const date = targetDate || new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  
+  // Lấy tất cả bác sĩ active từ doctors_catalog
+  const doctorsSnap = await firestore
+    .collection('doctors_catalog')
+    .where('status', '==', 'active')
+    .get();
+
+  const doctors = [];
+  doctorsSnap.forEach((doc) => {
+    const data = doc.data();
+    doctors.push({
+      doctor_id: doc.id,
+      doctor_name: data.doctor,
+      department: data.department,
+      departmentId: data.departmentId,
+      user_id: data.user_id,
+    });
+  });
+
+  // Lấy tất cả appointments của ngày hôm nay
+  const startOfDay = `${date} 00:00`;
+  const endOfDay = `${date} 23:59`;
+  
+  // Query appointments cho ngày này
+  // Note: Firestore không hỗ trợ range query trên string, nên cần query tất cả và filter
+  const appointmentsSnap = await firestore
+    .collection('appointments')
+    .where('status', 'in', ['pending', 'confirmed'])
+    .get();
+
+  // Filter appointments theo date và group theo doctor
+  const appointmentsByDoctor = {};
+  
+  appointmentsSnap.forEach((doc) => {
+    const data = doc.data();
+    if (!data.startTimeLocal) return;
+    
+    const appointmentDate = data.startTimeLocal.split(' ')[0];
+    if (appointmentDate !== date) return;
+    
+    const doctorName = data.doctor;
+    if (!doctorName) return;
+    
+    if (!appointmentsByDoctor[doctorName]) {
+      appointmentsByDoctor[doctorName] = [];
+    }
+    
+    // Parse time từ startTimeLocal
+    const timePart = data.startTimeLocal.split(' ')[1] || '';
+    const [hours, minutes] = timePart.split(':');
+    const time24 = `${hours}:${minutes}`;
+    
+    appointmentsByDoctor[doctorName].push({
+      id: doc.id,
+      submissionId: data.submissionId,
+      fullName: data.fullName,
+      phone: data.phone,
+      email: data.email,
+      time: time24,
+      time12: convert24To12(time24),
+      status: data.status,
+      reason: data.note || 'Khám bệnh',
+    });
+  });
+
+  // Sort appointments theo thời gian
+  Object.keys(appointmentsByDoctor).forEach((doctorName) => {
+    appointmentsByDoctor[doctorName].sort((a, b) => {
+      const [aH, aM] = a.time.split(':').map(Number);
+      const [bH, bM] = b.time.split(':').map(Number);
+      return aH * 60 + aM - (bH * 60 + bM);
+    });
+  });
+
+  // Map doctors với appointments
+  const result = doctors.map((doctor) => ({
+    doctor_id: doctor.doctor_id,
+    doctor_name: doctor.doctor_name,
+    department: doctor.department,
+    departmentId: doctor.departmentId,
+    user_id: doctor.user_id,
+    appointments: appointmentsByDoctor[doctor.doctor_name] || [],
+    total: appointmentsByDoctor[doctor.doctor_name]?.length || 0,
+  }));
+
+  // Sort theo số lượng appointments (nhiều nhất trước)
+  result.sort((a, b) => b.total - a.total);
+
+  return result;
+};
+
+// Helper function để convert 24h format sang 12h format
+const convert24To12 = (time24) => {
+  if (!time24) return '';
+  const [hours, minutes] = time24.split(':');
+  const h = parseInt(hours, 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${minutes} ${ampm}`;
 };
