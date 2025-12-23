@@ -1557,13 +1557,40 @@ export const getTodayScheduleForAllDoctors = async (targetDate) => {
     });
   });
 
-  // Map doctors với appointments
+  // Lấy email của từng bác sĩ từ users collection
+  const doctorUserIds = doctors.filter(d => d.user_id).map(d => d.user_id);
+  const userEmailsMap = {};
+  
+  if (doctorUserIds.length > 0) {
+    // Batch get users để lấy email
+    const userPromises = doctorUserIds.map(async (userId) => {
+      try {
+        const userDoc = await firestore.collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          return { userId, email: userData.email || null };
+        }
+        return { userId, email: null };
+      } catch (error) {
+        console.warn(`⚠️ Error fetching user email for ${userId}:`, error.message);
+        return { userId, email: null };
+      }
+    });
+    
+    const userResults = await Promise.all(userPromises);
+    userResults.forEach(({ userId, email }) => {
+      userEmailsMap[userId] = email;
+    });
+  }
+
+  // Map doctors với appointments và email
   const result = doctors.map((doctor) => ({
     doctor_id: doctor.doctor_id,
     doctor_name: doctor.doctor_name,
     department: doctor.department,
     departmentId: doctor.departmentId,
     user_id: doctor.user_id,
+    email: doctor.user_id ? (userEmailsMap[doctor.user_id] || null) : null,
     appointments: appointmentsByDoctor[doctor.doctor_name] || [],
     total: appointmentsByDoctor[doctor.doctor_name]?.length || 0,
   }));

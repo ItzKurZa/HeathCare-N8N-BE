@@ -120,6 +120,7 @@ export const getProfileData = async (req, res, next) => {
 // đánh dấu nhắc nhở đã gửi
 export const markRemindersSent = async (req, res, next) => {
   try {
+    console.log('Received request to mark reminders sent with body:', req.body);
     const { ids } = req.body; // [id1, id2, ...]
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ success: false, error: 'Invalid or missing ids array' });
