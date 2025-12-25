@@ -21,6 +21,7 @@ export const uploadMedical = async (req, res, next) => {
             file_type: file.mimetype,
             file_size: file.size,
             description: fields.notes || fields.description || '',
+            summary: result.n8nResult.summary,
             uploaded_at: new Date().toISOString(),
         };
 
