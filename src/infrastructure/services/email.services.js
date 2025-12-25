@@ -9,8 +9,8 @@ class EmailService {
      * @param {Object} params - Thông tin appointment
      */
     async sendSurvey(params) {
-        const { email, patientName, doctorName, surveyUrl, appointmentDate } = params;
-        console.log(email, patientName, doctorName, surveyUrl, appointmentDate);
+        const { to, patientName, doctorName, surveyUrl, appointmentDate } = params;
+        console.log(to, patientName, doctorName, surveyUrl, appointmentDate);
         const msg = {
             to: email,
             from: config.sendgrid.senderEmail,
