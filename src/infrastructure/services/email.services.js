@@ -14,7 +14,7 @@ class EmailService {
         const msg = {
             to: appointment.email,
             from: config.sendgrid.senderEmail,
-            subject: `Khảo sát hài lòng sau khám – ${appointment.fullName}`,
+            subject: `Khảo sát hài lòng sau khám - ${appointment.fullName}`,
             html: `
                 <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e0e0e0;border-radius:8px;">
                     <div style="background:#007bff;color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center;">
@@ -261,10 +261,9 @@ class EmailService {
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;width:40%;"><b>Cảm xúc tổng thể:</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">
-                                    <span style="display:inline-block;padding:4px 12px;background:${
-                                        insights.sentiment === 'negative' ? '#d9534f' :
-                                        insights.sentiment === 'neutral' ? '#f0ad4e' : '#5cb85c'
-                                    };color:white;border-radius:4px;font-weight:bold;">
+                                    <span style="display:inline-block;padding:4px 12px;background:${insights.sentiment === 'negative' ? '#d9534f' :
+                    insights.sentiment === 'neutral' ? '#f0ad4e' : '#5cb85c'
+                };color:white;border-radius:4px;font-weight:bold;">
                                         ${insights.sentiment?.toUpperCase() || 'N/A'}
                                     </span>
                                 </td>
@@ -282,17 +281,17 @@ class EmailService {
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Vấn đề phát hiện:</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">
-                                    ${insights.concerns && insights.concerns.length > 0 
-                                        ? insights.concerns.map(c => `<span style="display:inline-block;padding:2px 8px;background:#f0ad4e;color:white;border-radius:3px;margin:2px;">${c}</span>`).join(' ')
-                                        : 'Không xác định'}
+                                    ${insights.concerns && insights.concerns.length > 0
+                    ? insights.concerns.map(c => `<span style="display:inline-block;padding:2px 8px;background:#f0ad4e;color:white;border-radius:3px;margin:2px;">${c}</span>`).join(' ')
+                    : 'Không xác định'}
                                 </td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Điểm tích cực:</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">
-                                    ${insights.positives && insights.positives.length > 0 
-                                        ? insights.positives.join(', ')
-                                        : 'Không có'}
+                                    ${insights.positives && insights.positives.length > 0
+                    ? insights.positives.join(', ')
+                    : 'Không có'}
                                 </td>
                             </tr>
                         </table>

@@ -10,7 +10,6 @@ const router = express.Router();
  */
 router.post('/send-survey', async (req, res, next) => {
   try {
-    console.log('Body nhận được:', req.body);
     const { appointmentId, email, fullName, doctor } = req.body;
 
     if (!appointmentId || !email) {
