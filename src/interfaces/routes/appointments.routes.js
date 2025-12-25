@@ -3,6 +3,31 @@ import { firestore as db } from '../../config/firebase.js';
 
 const router = express.Router();
 
+router.get('/debug-check-data', async (req, res) => {
+  try {
+    // Lấy 5 lịch hẹn mới nhất bất kể số điện thoại
+    const snapshot = await db.collection('appointments')
+      .orderBy('created_at', 'desc')
+      .limit(5)
+      .get();
+
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      // In ra tất cả các trường có khả năng chứa SĐT để kiểm tra
+      phone_raw: doc.data().phone,
+      phone_type: typeof doc.data().phone, // Kiểm tra xem là 'string' hay 'number'
+      patientPhone: doc.data().patientPhone,
+      phoneNumber: doc.data().phoneNumber,
+      mobile: doc.data().mobile,
+      full_data: doc.data() // In hết để soi
+    }));
+
+    res.json({ success: true, debug_data: data });
+  } catch (error) {
+    res.json({ error: error.message });
+  }
+});
+
 // ==========================================
 // 1. CÁC ROUTE CỤ THỂ (ĐẶT LÊN ĐẦU)
 // ==========================================
