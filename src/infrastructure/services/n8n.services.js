@@ -33,7 +33,7 @@ export const sendMedicalFile = async ({ fields }) => {
         const r = await axios.post(url, fields, {
             headers: { 'Content-Type': 'application/json' },
             maxBodyLength: Infinity,
-            timeout: 30000,
+            timeout: 120000,
         });
 
         return r.data;
