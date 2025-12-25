@@ -4,11 +4,11 @@ import { uploadFileToBackblaze } from '../../infrastructure/services/backblaze.s
 export const sendMedicalFileToN8nAndCloud = async ({ fields, file }) => {
   if (!file) throw new Error('File required');
 
-  const { fileUrl } = await uploadFileToBackblaze(file);
+  const { fileId ,fileUrl } = await uploadFileToBackblaze(file);
 
   if (!fileUrl) throw new Error('File upload failed — fileUrl missing');
 
   const n8nResult = await sendMedicalFile({ fields: { ...fields, fileUrl } });
 
-  return { n8nResult, fileUrl };
+  return { n8nResult, fileUrl, fileId };
 };
