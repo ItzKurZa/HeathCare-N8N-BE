@@ -10,6 +10,7 @@ class EmailService {
      */
     async sendSurvey(params) {
         const { email, patientName, doctorName, surveyUrl, appointmentDate } = params;
+        console.log(email, patientName, doctorName, surveyUrl, appointmentDate);
         const msg = {
             to: email,
             from: config.sendgrid.senderEmail,
