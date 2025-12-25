@@ -88,7 +88,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
         total: surveysSnapshot.size,
         averageScore: surveysSnapshot.size > 0 ? (totalScore / surveysSnapshot.size).toFixed(2) : 0,
         lowScoreCount,
-        responseRate: appointmentsSnapshot.size > 0 
+        responseRate: appointmentsSnapshot.size > 0
           ? ((surveysSnapshot.size / appointmentsSnapshot.size) * 100).toFixed(1) + '%'
           : '0%'
       },
@@ -155,14 +155,14 @@ router.get('/lookup', async (req, res, next) => {
     // 2. Query Firestore dùng toán tử 'in' (Tìm 1 trong các số này)
     // Lưu ý: Firestore chỉ cho phép tối đa 10 giá trị trong 'in'
     let snapshot = await db.collection('appointments')
-      .where('phone', 'in', phoneVariations) 
+      .where('phone', 'in', phoneVariations)
       .limit(10)
       .get();
 
     // Fallback: Nếu không tìm thấy ở 'phone', tìm tiếp ở 'patientPhone'
     if (snapshot.empty) {
-       console.log(`[Lookup] Not found in 'phone', checking 'patientPhone'...`);
-       snapshot = await db.collection('appointments')
+      console.log(`[Lookup] Not found in 'phone', checking 'patientPhone'...`);
+      snapshot = await db.collection('appointments')
         .where('patientPhone', 'in', phoneVariations)
         .limit(10)
         .get();
@@ -181,13 +181,13 @@ router.get('/lookup', async (req, res, next) => {
     // Lấy lịch hẹn mới nhất
     let latestDoc = null;
     let latestDate = null;
-    
+
     snapshot.forEach(doc => {
       const data = doc.data();
       // Ưu tiên created_at, fallback sang createdAt
       const createdVal = data.created_at || data.createdAt;
       const createdAt = createdVal?.toDate?.() || new Date(0);
-      
+
       if (!latestDate || createdAt > latestDate) {
         latestDate = createdAt;
         latestDoc = { id: doc.id, ...data };
@@ -195,7 +195,7 @@ router.get('/lookup', async (req, res, next) => {
     });
 
     const data = latestDoc;
-    
+
     // Map dữ liệu trả về frontend
     const appointmentInfo = {
       id: data.id,
@@ -234,6 +234,30 @@ router.get('/completed', async (req, res, next) => {
     const appointments = [];
     snapshot.forEach(doc => {
       const data = doc.data();
+
+      // --- BẮT ĐẦU ĐOẠN XỬ LÝ NGÀY THÁNG AN TOÀN ---
+      let finalApptDate = null;
+
+      // Ưu tiên 1: Lấy appointmentDate có sẵn
+      if (data.appointmentDate) {
+        finalApptDate = data.appointmentDate;
+      }
+      // Ưu tiên 2: Lấy startTimeLocal
+      else if (data.startTimeLocal) {
+        // Kiểm tra: Nếu là Timestamp của Firebase thì mới dùng .toDate()
+        if (typeof data.startTimeLocal.toDate === 'function') {
+          finalApptDate = data.startTimeLocal.toDate().toISOString();
+        } else {
+          // Nếu không phải function (tức là String), thì dùng luôn giá trị đó
+          finalApptDate = data.startTimeLocal;
+        }
+      }
+      // Ưu tiên 3: Lấy ngày tạo (created_at)
+      else if (data.created_at && typeof data.created_at.toDate === 'function') {
+        finalApptDate = data.created_at.toDate().toISOString();
+      }
+      // --- KẾT THÚC ĐOẠN XỬ LÝ ---
+
       appointments.push({
         id: doc.id,
         bookingId: data.bookingId || doc.id,
@@ -241,7 +265,7 @@ router.get('/completed', async (req, res, next) => {
         phone: data.phone || data.patientPhone || 'N/A',
         email: data.email || data.patientEmail,
         doctorName: data.doctorName || data.doctor || 'N/A',
-        appointmentDate: data.appointmentDate || data.startTimeLocal?.toDate()?.toISOString() || data.created_at?.toDate()?.toISOString(),
+        appointmentDate: finalApptDate, // Sử dụng biến đã xử lý an toàn
         status: data.status,
         survey_completed: data.survey_completed || false
       });
