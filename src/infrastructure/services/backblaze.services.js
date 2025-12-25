@@ -52,3 +52,14 @@ export const uploadFileToBackblaze = async (file) => {
         throw err;
     }
 };
+
+export const deleteFileFromBackblaze = async (fileName, fileId) => {
+    if (!backblazeInitialized || !backblaze) throw new Error('Backblaze not initialized');
+
+    await backblaze.authorize();
+    await backblaze.deleteFileVersion({
+        fileName: fileName,
+        fileId: fileId
+    });
+    console.log(`✅ Deleted file ${fileName} from Backblaze`);
+};

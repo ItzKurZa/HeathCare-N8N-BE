@@ -4,6 +4,7 @@ import {
   getUserFilesService,
   deleteFileService,
 } from '../../infrastructure/services/firebase.services.js';
+import { deleteFileFromBackblaze } from '../../infrastructure/services/backblaze.services.js';
 import { v4 as uuid } from 'uuid';
 
 export const uploadMedical = async (req, res, next) => {
@@ -52,8 +53,9 @@ export const getUserFiles = async (req, res, next) => {
 
 export const deleteFile = async (req, res, next) => {
     try {
-        const { fileId } = req.params;
+        const { file_name ,fileId } = req.params;
         await deleteFileService(fileId);
+        await deleteFileFromBackblaze(file_name, fileId);
         
         res.status(200).json({
             success: true,
