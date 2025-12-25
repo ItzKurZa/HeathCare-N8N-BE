@@ -101,7 +101,7 @@ export const handleVoiceSurveyWebhook = async (req, res) => {
 
         // Update appointment status
         const appointmentQuery = await firestore.collection('appointments')
-            .where('bookingId', '==', surveyData.booking_id)
+            .where('submissionId', '==', surveyData.booking_id)
             .limit(1)
             .get();
 
@@ -182,7 +182,7 @@ export const initiateVoiceSurvey = async (req, res) => {
 
         // Get appointment details
         const appointmentQuery = await firestore.collection('appointments')
-            .where('bookingId', '==', appointmentId)
+            .where('submissionId', '==', appointmentId)
             .limit(1)
             .get();
 
