@@ -81,7 +81,7 @@ app.use('/api/emails', emailRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/voice-calls', voiceCallRoutes);
-app.use('/api/cskh-appointments', appointmentsRoutes);
+app.use('/api/appointments', appointmentsRoutes);
 
 // middleware xử lý lỗi
 app.use(errorHandler);
