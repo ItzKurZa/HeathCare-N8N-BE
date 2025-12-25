@@ -10,12 +10,21 @@ const router = express.Router();
  */
 router.post('/send-survey', async (req, res, next) => {
   try {
-    const { appointmentId, email, fullName, doctor } = req.body;
+    console.log('📧 Send survey email request body:', JSON.stringify(req.body, null, 2));
+    
+    // Support multiple field name formats from n8n
+    const appointmentId = req.body.appointmentId || req.body.id || req.body.bookingId;
+    const email = req.body.email || req.body.patientEmail;
+    const fullName = req.body.fullName || req.body.patientName || 'Quý khách';
+    const doctor = req.body.doctor || req.body.doctorName || 'Bác sĩ';
+    const startTimeLocal = req.body.startTimeLocal || req.body.appointmentDate;
 
     if (!appointmentId || !email) {
+      console.log('❌ Missing fields - appointmentId:', appointmentId, 'email:', email);
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: appointmentId and email are required'
+        error: 'Missing required fields: appointmentId and email are required',
+        received: { appointmentId, email }
       });
     }
 
@@ -25,10 +34,11 @@ router.post('/send-survey', async (req, res, next) => {
     // Send email
     const result = await emailService.sendSurvey({
       to: email,
-      patientName: fullName || 'Quý khách',
-      doctorName: doctor || 'Bác sĩ',
+      patientName: fullName,
+      doctorName: doctor,
       surveyUrl,
-      appointmentId
+      appointmentId,
+      startTimeLocal
     });
 
     if (result.success) {

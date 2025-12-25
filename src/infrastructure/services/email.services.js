@@ -6,14 +6,23 @@ sgMail.setApiKey(config.sendgrid.apiKey);
 class EmailService {
     /**
      * Gửi email khảo sát cho bệnh nhân
-     * @param {Object} appointment - Thông tin appointment
-     * @param {string} surveyUrl - URL của biểu mẫu khảo sát
+     * @param {Object} options - Thông tin gửi email
+     * @param {string} options.to - Email người nhận
+     * @param {string} options.patientName - Tên bệnh nhân
+     * @param {string} options.doctorName - Tên bác sĩ
+     * @param {string} options.surveyUrl - URL của biểu mẫu khảo sát
+     * @param {string} options.appointmentId - ID cuộc hẹn
      */
-    async sendSurvey(appointment, surveyUrl) {
+    async sendSurvey({ to, patientName, doctorName, surveyUrl, appointmentId, startTimeLocal }) {
+        if (!to) {
+            console.error('❌ Missing email recipient (to)');
+            return { success: false, error: 'Missing email recipient' };
+        }
+
         const msg = {
-            to: appointment.email,
+            to: to,
             from: config.sendgrid.senderEmail,
-            subject: `Khảo sát hài lòng sau khám – ${appointment.fullName}`,
+            subject: `Khảo sát hài lòng sau khám – ${patientName}`,
             html: `
                 <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e0e0e0;border-radius:8px;">
                     <div style="background:#007bff;color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center;">
@@ -21,9 +30,9 @@ class EmailService {
                     </div>
                     
                     <div style="padding:20px;">
-                        <p>Chào <b>${appointment.fullName}</b>,</p>
+                        <p>Chào <b>${patientName}</b>,</p>
                         
-                        <p>Cảm ơn Anh/Chị đã thăm khám với <b>${appointment.doctor}</b> vào ngày <b>${appointment.startTimeLocal}</b>.</p>
+                        <p>Cảm ơn Anh/Chị đã thăm khám với <b>${doctorName}</b>${startTimeLocal ? ` vào ngày <b>${startTimeLocal}</b>` : ''}.</p>
                         
                         <p>Chúng tôi rất mong nhận được phản hồi của Anh/Chị để cải thiện chất lượng dịch vụ.</p>
                         
@@ -54,9 +63,9 @@ class EmailService {
         };
 
         try {
-            await sgMail.send(msg);
-            console.log(`✅ Survey email sent to ${appointment.email}`);
-            return { success: true };
+            const response = await sgMail.send(msg);
+            console.log(`✅ Survey email sent to ${to}`);
+            return { success: true, messageId: response[0]?.headers?.['x-message-id'] || 'sent' };
         } catch (error) {
             console.error('❌ SendGrid survey error:', error.response?.body || error.message);
             return { success: false, error: error.message };
@@ -136,8 +145,8 @@ class EmailService {
                             </tr>
                             <tr style="background:#f9f9f9;">
                                 <td style="padding:8px;"><b>Tổng điểm trung bình:</b></td>
-                                <td style="padding:8px;font-size:20px;font-weight:bold;color:${surveyData.overall_score < 7 ? '#d9534f' : '#5cb85c'};">
-                                    ${surveyData.overall_score.toFixed(1)}/10
+                                <td style="padding:8px;font-size:20px;font-weight:bold;color:${(surveyData.overall_score || 0) < 7 ? '#d9534f' : '#5cb85c'};">
+                                    ${(surveyData.overall_score || 0).toFixed(1)}/10
                                 </td>
                             </tr>
                         </table>

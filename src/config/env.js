@@ -10,6 +10,7 @@ export const config = {
         fetch: process.env.N8N_WEBHOOK_FETCH,
         chatSend: process.env.N8N_WEBHOOK_CHAT_SEND,
         departmentsDoctors: process.env.N8N_WEBHOOK_DEPARTMENTS_DOCTORS,
+        surveyWebhook: process.env.N8N_WEBHOOK_SURVEY, // Webhook nhận survey từ form
     },
     firebase: {
         serviceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
@@ -36,9 +37,13 @@ export const config = {
     elevenlabs: {
         apiKey: process.env.ELEVENLABS_API_KEY,
         agentId: process.env.ELEVENLABS_AGENT_ID,
+        webhookSecret: process.env.ELEVENLABS_WEBHOOK_SECRET,
     },
     openrouter: {
         apiKey: process.env.OPENROUTER_API_KEY,
+    },
+    backend: {
+        webhookUrl: process.env.BACKEND_WEBHOOK_URL || 'http://localhost:5000',
     },
     survey: {
         baseUrl: process.env.SURVEY_BASE_URL,

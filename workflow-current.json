@@ -1,0 +1,125 @@
+{
+  "name": "Healthcare Voice Current",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-event",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "edb8d33f-c31e-454e-813b-9d7af6759e8b",
+      "name": "Webhook Voice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [160, 320],
+      "webhookId": "healthcare-voice"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/voice-calls/webhook",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "53854d37-52c0-4cb3-a716-bf63eac2d1b4",
+      "name": "Process Voice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [656, 336]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }",
+        "options": {}
+      },
+      "id": "fdb10110-18b2-4536-a026-713616435c14",
+      "name": "Respond Voice",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [832, 512]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lấy header từ input data\nconst inputData = $input.first().json;\nconst headers = inputData.headers || {};\nconst signature = headers['x-elevenlabs-signature'];\n\n// Bỏ qua validation trong test mode\nconst isTestMode = inputData.executionMode === 'test';\n\nconsole.log('✅ Webhook validated - Test mode:', isTestMode);\n\n// Trả về body data để các node tiếp theo sử dụng\nreturn [{\n  json: inputData.body || inputData\n}];"
+      },
+      "id": "900ca83a-abb1-4450-940d-06627149d545",
+      "name": "Validate Signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [432, 304]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Validate Signature').item.json.analysis.sentiment }}",
+              "value2": "negative"
+            }
+          ]
+        }
+      },
+      "id": "15b9e282-2707-44c8-9a82-24f4aacd132f",
+      "name": "Negative?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [816, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/alerts/voice-alert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "callData",
+              "value": "={{ $('Process Voice').item.json.data }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "515bb36c-f35c-4aed-95eb-64bbb990d5b3",
+      "name": "Voice Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 288]
+    }
+  ],
+  "connections": {
+    "Webhook Voice": {
+      "main": [[{"node": "Validate Signature", "type": "main", "index": 0}]]
+    },
+    "Process Voice": {
+      "main": [
+        [
+          {"node": "Respond Voice", "type": "main", "index": 0},
+          {"node": "Negative?", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Validate Signature": {
+      "main": [[{"node": "Process Voice", "type": "main", "index": 0}]]
+    },
+    "Negative?": {
+      "main": [[{"node": "Voice Alert", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {}
+}

@@ -3,6 +3,15 @@ import { firestore as db } from '../../config/firebase.js';
 
 const router = express.Router();
 
+// Helper function to safely convert Firestore Timestamp or string to Date
+const toDateSafe = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value; // Already ISO string
+  if (typeof value.toDate === 'function') return value.toDate().toISOString();
+  if (value instanceof Date) return value.toISOString();
+  return value;
+};
+
 /**
  * GET /api/appointments
  * Get appointments with filters
@@ -21,12 +30,13 @@ router.get('/', async (req, res, next) => {
     const appointments = [];
 
     snapshot.forEach(doc => {
+      const data = doc.data();
       appointments.push({
         id: doc.id,
-        ...doc.data(),
-        startTimeLocal: doc.data().startTimeLocal?.toDate(),
-        created_at: doc.data().created_at?.toDate(),
-        updated_at: doc.data().updated_at?.toDate()
+        ...data,
+        startTimeLocal: toDateSafe(data.startTimeLocal),
+        created_at: toDateSafe(data.created_at),
+        updated_at: toDateSafe(data.updated_at)
       });
     });
 
@@ -66,7 +76,7 @@ router.get('/completed', async (req, res, next) => {
         phone: data.phone || data.patientPhone || 'N/A',
         email: data.email || data.patientEmail,
         doctorName: data.doctorName || data.doctor || 'N/A',
-        appointmentDate: data.appointmentDate || data.startTimeLocal?.toDate()?.toISOString() || data.created_at?.toDate()?.toISOString(),
+        appointmentDate: data.appointmentDate || toDateSafe(data.startTimeLocal) || toDateSafe(data.created_at),
         status: data.status,
         survey_completed: data.survey_completed || false
       });
@@ -97,45 +107,99 @@ router.get('/lookup', async (req, res, next) => {
       });
     }
 
-    // Search in appointments collection by phone (without orderBy to avoid index requirement)
-    const snapshot = await db.collection('appointments')
-      .where('phone', '==', phone)
-      .limit(10)
-      .get();
+    console.log('🔍 Looking up appointment for phone:', phone);
 
-    if (snapshot.empty) {
+    // Normalize phone number - remove special characters and add prefix if needed
+    let normalizedPhone = phone.replace(/[^0-9]/g, '');
+    let phoneVariants = [normalizedPhone];
+    
+    // Add variants with different formats
+    if (normalizedPhone.startsWith('84')) {
+      phoneVariants.push('0' + normalizedPhone.slice(2));
+      phoneVariants.push('+' + normalizedPhone);
+    } else if (normalizedPhone.startsWith('0')) {
+      phoneVariants.push('+84' + normalizedPhone.slice(1));
+      phoneVariants.push('84' + normalizedPhone.slice(1));
+    }
+
+    console.log('📱 Phone variants to search:', phoneVariants);
+
+    // Search in appointments collection by phone
+    let latestDoc = null;
+    let latestDate = new Date(0);
+
+    for (const phoneVariant of phoneVariants) {
+      const snapshot = await db.collection('appointments')
+        .where('phone', '==', phoneVariant)
+        .limit(10)
+        .get();
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        let createdAt;
+        
+        if (data.createdAt?.toDate) {
+          createdAt = data.createdAt.toDate();
+        } else if (data.created_at?.toDate) {
+          createdAt = data.created_at.toDate();
+        } else if (typeof data.createdAt === 'string') {
+          createdAt = new Date(data.createdAt);
+        } else if (typeof data.startTimeLocal === 'string') {
+          createdAt = new Date(data.startTimeLocal);
+        } else {
+          createdAt = new Date();
+        }
+
+        if (createdAt > latestDate) {
+          latestDate = createdAt;
+          latestDoc = { id: doc.id, ...data };
+        }
+      });
+    }
+
+    if (!latestDoc) {
+      console.log('❌ No appointment found for phone variants:', phoneVariants);
       return res.status(404).json({
         success: false,
         error: 'Không tìm thấy lịch hẹn với số điện thoại này'
       });
     }
 
-    // Get the most recent appointment
-    let latestDoc = null;
-    let latestDate = null;
-    
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      const createdAt = data.createdAt?.toDate?.() || new Date(0);
-      if (!latestDate || createdAt > latestDate) {
-        latestDate = createdAt;
-        latestDoc = { id: doc.id, ...data };
-      }
-    });
+    console.log('✅ Found appointment:', latestDoc.id, latestDoc.patientName);
 
     const data = latestDoc;
+
+    // Format appointment date properly
+    let appointmentDateFormatted = '';
+    if (data.appointmentDate) {
+      appointmentDateFormatted = data.appointmentDate;
+    } else if (data.startTimeLocal) {
+      try {
+        const date = new Date(data.startTimeLocal);
+        appointmentDateFormatted = date.toLocaleDateString('vi-VN', {
+          year: 'numeric',
+          month: '2-digit', 
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch (e) {
+        appointmentDateFormatted = data.startTimeLocal;
+      }
+    }
 
     const appointmentInfo = {
       id: data.id,
       bookingId: data.bookingId || data.id,
-      patientName: data.patientName || 'N/A',
+      patientName: data.patientName || data.fullName || 'N/A',
       phone: data.phone,
       email: data.email || '',
-      doctorName: data.doctorName || 'N/A',
-      doctorSpecialty: data.doctorSpecialty || '',
-      appointmentDate: data.appointmentDate || '',
+      doctorName: data.doctorName || data.doctor || 'N/A',
+      doctorSpecialty: data.doctorSpecialty || data.specialty || '',
+      department: data.department || '',
+      appointmentDate: appointmentDateFormatted,
       timeSlot: data.timeSlot || '',
-      status: data.status || 'unknown'
+      status: data.status || data.visitStatus || 'unknown'
     };
 
     res.json({
@@ -257,9 +321,9 @@ router.get('/:id', async (req, res, next) => {
       data: {
         id: doc.id,
         ...data,
-        startTimeLocal: data.startTimeLocal?.toDate(),
-        created_at: data.created_at?.toDate(),
-        updated_at: data.updated_at?.toDate()
+        startTimeLocal: toDateSafe(data.startTimeLocal),
+        created_at: toDateSafe(data.created_at),
+        updated_at: toDateSafe(data.updated_at)
       }
     });
   } catch (error) {

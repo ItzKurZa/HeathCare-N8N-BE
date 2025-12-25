@@ -1,5 +1,6 @@
 import express from 'express';
 import { firestore } from '../../config/firebase.js';
+import { config } from '../../config/env.js';
 import aiAnalyzer from '../../infrastructure/services/aiAnalyzer.services.js';
 import emailService from '../../infrastructure/services/email.services.js';
 import ExcelJS from 'exceljs';
@@ -169,24 +170,31 @@ router.get('/export', async (req, res) => {
  */
 router.post('/submit', async (req, res) => {
     try {
-        const {
-            booking_id,
-            patient_name,
-            phone,
-            email,
-            nps,
-            csat,
-            facility,
-            staff_attitude,
-            waiting_time,
-            comment
-        } = req.body;
+        console.log('📝 Survey submit request body:', JSON.stringify(req.body, null, 2));
+        
+        // Extract data - support both direct body and nested body from n8n webhook
+        const data = req.body.body || req.body;
+        
+        // Support multiple field name formats (from form and from n8n webhook)
+        const booking_id = data.booking_id || data.appointmentId || data.bookingId;
+        const patient_name = data.patient_name || data.patientName || data.fullName;
+        const phone = data.phone;
+        const email = data.email;
+        const nps = data.nps;
+        const csat = data.csat;
+        const facility = data.facility;
+        const staff_attitude = data.staff_attitude;
+        const waiting_time = data.waiting_time;
+        const comment = data.comment;
+        const doctor_name = data.doctor_name || data.doctorName;
 
         // Validate required fields
         if (!booking_id || !patient_name || !phone) {
+            console.log('❌ Missing fields - booking_id:', booking_id, 'patient_name:', patient_name, 'phone:', phone);
             return res.status(400).json({
                 success: false,
-                error: 'Missing required fields: booking_id, patient_name, phone'
+                error: 'Missing required fields: booking_id, patient_name, phone',
+                received: { booking_id, patient_name, phone }
             });
         }
 
@@ -194,6 +202,7 @@ router.post('/submit', async (req, res) => {
         const surveyData = {
             appointmentId: booking_id,
             patientName: patient_name,
+            doctorName: doctor_name || null,
             phone,
             email: email || null,
             nps: parseInt(nps) || 0,
@@ -225,6 +234,32 @@ router.post('/submit', async (req, res) => {
         // Lưu vào Firestore
         const surveyRef = await firestore.collection('surveys').add(surveyData);
         console.log(`✅ Survey saved with ID: ${surveyRef.id}`);
+
+        // Forward đến n8n webhook nếu được cấu hình
+        if (config.n8n.surveyWebhook) {
+            try {
+                console.log('📤 Forwarding survey to n8n webhook...');
+                const n8nPayload = {
+                    surveyId: surveyRef.id,
+                    ...surveyData,
+                    needsImprovement: surveyData.improvement_trigger
+                };
+                
+                const n8nResponse = await fetch(config.n8n.surveyWebhook, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(n8nPayload)
+                });
+                
+                if (n8nResponse.ok) {
+                    console.log('✅ Survey forwarded to n8n successfully');
+                } else {
+                    console.warn('⚠️ n8n webhook response:', n8nResponse.status);
+                }
+            } catch (n8nError) {
+                console.error('⚠️ Error forwarding to n8n (non-blocking):', n8nError.message);
+            }
+        }
 
         // Cập nhật appointment status
         if (booking_id) {

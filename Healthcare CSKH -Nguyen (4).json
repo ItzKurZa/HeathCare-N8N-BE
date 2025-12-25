@@ -1,0 +1,605 @@
+{
+  "name": "Healthcare CSKH -Nguyen",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "f79b4962-e74d-4f1c-8f2c-c85a341299d5",
+      "name": "Schedule Survey Send",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        176,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/appointments?status=COMPLETED&limit=100",
+        "options": {}
+      },
+      "id": "e781ebd1-89ee-4ef8-81e2-f7bd9896c757",
+      "name": "Get Completed Appointments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        400,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const appointments = $input.first().json.data || [];\nconst items = [];\nconst twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);\n\nconsole.log(`Processing ${appointments.length} appointments...`);\n\nfor (const apt of appointments) {\n  const appointmentTime = new Date(apt.startTimeLocal);\n  if (!apt.survey_sent && appointmentTime <= twentyFourHoursAgo) {\n    items.push({ json: apt });\n    console.log(`✅ ${apt.patientName} needs survey`);\n  }\n}\n\nconsole.log(`Found ${items.length} appointments needing surveys`);\nreturn items;"
+      },
+      "id": "c4d25f27-f921-490a-83cb-ab3aebb521a4",
+      "name": "Filter Need Survey",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/emails/send-survey",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"appointmentId\": \"{{ $json.id }}\",\n  \"email\": \"{{ $json.email }}\",\n  \"fullName\": \"{{ $json.patientName }}\",\n  \"doctor\": \"{{ $json.doctor }}\"\n}",
+        "options": {}
+      },
+      "id": "9777c3f1-7e90-4794-ab07-6fa52aeab972",
+      "name": "Send Survey Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        848,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/appointments/{{ $('Filter Need Survey').item.json.id }}/survey-sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"survey_sent\": true,\n  \"survey_sent_at\": \"{{ $now.toISO() }}\"\n}",
+        "options": {}
+      },
+      "id": "2e9cac2a-f695-490c-81c9-5edcd72ac941",
+      "name": "Mark Survey Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1056,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "survey-response",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0fdb5a51-e230-4d72-bf95-317dc502f6d0",
+      "name": "Webhook Survey",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        176,
+        64
+      ],
+      "webhookId": "healthcare-survey"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/surveys/submit",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "020b40a2-08f1-48e6-9824-dffd89b6da35",
+      "name": "Process Survey",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        400,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.data.needsImprovement }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "712d520e-493a-47a2-9e83-b6264531bee7",
+      "name": "Needs Improvement?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/ai/analyze",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "surveyData",
+              "value": "={{ $json.data }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "bd7af9a7-f172-4dd0-980c-e5212cc87b6e",
+      "name": "AI Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        848,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/alerts/send",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "surveyData",
+              "value": "={{ $('Needs Improvement?').item.json.data }}"
+            },
+            {
+              "name": "aiAnalysis",
+              "value": "={{ $json.data.analysis }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e190bd6e-5e4b-4ec4-943b-e9169c5a1953",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1056,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Survey received\" }",
+        "options": {}
+      },
+      "id": "28d21743-a94b-4cf0-860b-1dc589e12134",
+      "name": "Respond Survey",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        624,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst eventType = data.type || data.event_type;\n\nconsole.log('📥 Event received:', eventType);\nconsole.log('Agent ID:', data.agent_id);\n\n// Chuẩn bị data theo loại event\nlet processedData = {\n  eventType: eventType,\n  agentId: data.agent_id || 'agent_4801kany60txemet20th12zqtw2v',\n  conversationId: data.conversation_id,\n  timestamp: data.timestamp || new Date().toISOString(),\n  rawData: data\n};\n\nswitch(eventType) {\n  case 'conversation.started':\n    processedData.action = 'call_started';\n    processedData.caller = data.caller_info;\n    break;\n    \n  case 'conversation.ended':\n    processedData.action = 'call_ended';\n    processedData.duration = data.duration;\n    processedData.transcript = data.transcript;\n    processedData.analysis = data.analysis;\n    break;\n    \n  case 'agent.response':\n    processedData.action = 'agent_spoke';\n    processedData.response = data.response;\n    break;\n    \n  case 'user.transcript':\n    processedData.action = 'user_spoke';\n    processedData.userText = data.text;\n    processedData.sentiment = data.sentiment;\n    break;\n    \n  default:\n    processedData.action = 'unknown_event';\n}\n\nconsole.log('✅ Processed data:', processedData.action);\n\nreturn [{ json: processedData }];"
+      },
+      "id": "54c6eac5-0e24-4b02-a4e8-74e5b5c5a8bf",
+      "name": "Parse Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.evaluation.sentiment }}",
+              "value2": "negative"
+            }
+          ]
+        }
+      },
+      "id": "7320be83-85c7-417f-b467-0e45455d94e7",
+      "name": "Is Negative?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Event processed\",\n  \"eventType\": \"={{ $('Parse Event').item.json.rawData.body.type }}\",\n  \"conversationId\": \"={{ $('Parse Event').item.json.rawData.body.data.conversation_id }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\"\n}\n",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "1e17c8cf-7a70-443f-a7a3-cc923172a4df",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log để debug\nconst result = $input.first().json;\n\nconsole.log('📊 Alert sent successfully');\nconsole.log('Response:', result);\n\nreturn $input.all();"
+      },
+      "id": "d6a1189e-1c71-4c12-95be-d9d4378347c6",
+      "name": "Log Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        448
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/voice-calls/webhook",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "conversation_id",
+              "value": "={{$json.rawData.body.data.conversation_id}}"
+            },
+            {
+              "name": "agent_id",
+              "value": "={{$json.rawData.body.data.agent_id}}"
+            },
+            {
+              "name": "type",
+              "value": "={{$json.rawData.body.type}}"
+            },
+            {
+              "name": "data",
+              "value": "={{$json.rawData.body.data}}"
+            },
+            {
+              "name": "ref",
+              "value": "={{$json.rawData.body.data.conversation_id}}"
+            },
+            {
+              "name": "data.ref",
+              "value": "={{$json.rawData.body.data.conversation_id}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "50ec8775-1e55-4473-a0c8-9324c75eacbe",
+      "name": "Process Voice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        784,
+        432
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-event",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "edb8d33f-c31e-454e-813b-9d7af6759e8b",
+      "name": "Webhook Voice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        128,
+        432
+      ],
+      "webhookId": "healthcare-voice"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/alerts/voice-alert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"alertType\": \"negative_sentiment\",\n  \"severity\": \"high\",\n\n  \"conversationId\": \"{{ $('Parse Event').item.json.rawData?.body?.data?.conversation_id || '' }}\",\n  \"agentId\": \"{{ $('Parse Event').item.json.rawData?.body?.data?.agent_id || '' }}\",\n\n  \"sentiment\": \"{{ $json.evaluation?.sentiment || $('Parse Event').item.json.rawData?.body?.analysis?.call_successful || '' }}\",\n\n  \"transcript\": {{ JSON.stringify($('Parse Event').item.json.rawData?.body?.data?.transcript || []) }},\n\n  \"timestamp\": \"{{ new Date().toISOString() }}\",\n\n  \"callData\": {{ JSON.stringify($('Parse Event').item.json.rawData?.body || {}) }}\n}\n",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "9a7f627f-f1dc-41b0-b9c2-6617eb6977aa",
+      "name": "Send",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1536,
+        448
+      ],
+      "alwaysOutputData": true,
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $('Parse Event').item.json;\n\nconst transcript =\n  item.rawData?.body?.data?.transcript ||\n  item.rawData?.body?.transcript ||\n  [];\n\nconst userAnswers = transcript\n  .filter(t => t?.role === 'user')\n  .map(t => String(t?.message || '').trim());\n\nconst numericScores = userAnswers\n  .map(msg => Number(msg))\n  .filter(n => !isNaN(n) && n > 0);\n\nconst isNegative = numericScores.some(n => n <= 3);\n\nreturn {\n  json: {\n    ...$json,  // giữ dữ liệu hiện tại của workflow\n    evaluation: {\n      userAnswers,\n      numericScores,\n      hasTranscript: transcript.length > 0,\n      isNegative,\n      sentiment: isNegative ? 'negative' : 'ok'\n    }\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        448
+      ],
+      "id": "dfa1c818-f04f-45d5-85f0-39a0f6ad80ef",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Survey Send": {
+      "main": [
+        [
+          {
+            "node": "Get Completed Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Completed Appointments": {
+      "main": [
+        [
+          {
+            "node": "Filter Need Survey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Need Survey": {
+      "main": [
+        [
+          {
+            "node": "Send Survey Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Survey Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Survey Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Survey": {
+      "main": [
+        [
+          {
+            "node": "Process Survey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Survey": {
+      "main": [
+        [
+          {
+            "node": "Needs Improvement?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond Survey",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Improvement?": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Event": {
+      "main": [
+        [
+          {
+            "node": "Process Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Negative?": {
+      "main": [
+        [
+          {
+            "node": "Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Voice": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Voice": {
+      "main": [
+        [
+          {
+            "node": "Parse Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send": {
+      "main": [
+        [
+          {
+            "node": "Log Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Is Negative?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7e009238-b0cc-4df4-8b5a-b1ef11d0aeb2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "642882b9093f3cb5bc4af5c5ec7514a71cf9ed7039e7a8e856e3612e1bd66815"
+  },
+  "id": "9iENkiHyFAROggxL",
+  "tags": []
+}

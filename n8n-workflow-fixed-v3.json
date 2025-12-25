@@ -1,0 +1,245 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst eventType = data.type || data.event_type;\n\nconsole.log('📥 Event received:', eventType);\nconsole.log('Agent ID:', data.agent_id);\n\n// Chuẩn bị data theo loại event\nlet processedData = {\n  eventType: eventType,\n  agentId: data.agent_id || 'agent_4801kany60txemet20th12zqtw2v',\n  conversationId: data.conversation_id,\n  timestamp: data.timestamp || new Date().toISOString(),\n  rawData: data\n};\n\nswitch(eventType) {\n  case 'conversation.started':\n    processedData.action = 'call_started';\n    processedData.caller = data.caller_info;\n    break;\n    \n  case 'conversation.ended':\n    processedData.action = 'call_ended';\n    processedData.duration = data.duration;\n    processedData.transcript = data.transcript;\n    processedData.analysis = data.analysis;\n    break;\n    \n  case 'agent.response':\n    processedData.action = 'agent_spoke';\n    processedData.response = data.response;\n    break;\n    \n  case 'user.transcript':\n    processedData.action = 'user_spoke';\n    processedData.userText = data.text;\n    processedData.sentiment = data.sentiment;\n    break;\n    \n  default:\n    processedData.action = 'unknown_event';\n}\n\nconsole.log('✅ Processed data:', processedData.action);\n\nreturn [{ json: processedData }];"
+      },
+      "id": "0b307465-fdef-4eda-8e62-20815541a6d5",
+      "name": "Parse Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        1712
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.evaluation.sentiment }}",
+              "value2": "negative"
+            }
+          ]
+        }
+      },
+      "id": "62217818-c6e1-4c3d-b349-c21565e9e3cf",
+      "name": "Is Negative?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1232,
+        1744
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Event processed\",\n  \"eventType\": \"={{ $('Parse Event').item.json.eventType }}\",\n  \"conversationId\": \"={{ $('Parse Event').item.json.conversationId }}\",\n  \"timestamp\": \"={{ new Date().toISOString() }}\"\n}\n",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "1496407a-9682-4093-8c59-93538d66b0b5",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1456,
+        1888
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-event",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "c222a712-be6a-41e4-bb0a-fbd600701132",
+      "name": "Webhook Voice1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        64,
+        1712
+      ],
+      "webhookId": "healthcare-voice"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/alerts/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  patientName: $json.patientName,\n  phone: $json.phone,\n  appointmentId: $json.appointmentId,\n  conversationId: $json.conversationId,\n  sentiment: $json.evaluation.sentiment,\n  transcript: $json.transcript,\n  nps: $json.evaluation.avgScore || 0,\n  surveyData: {\n    userAnswers: $json.userAnswers,\n    numericScores: $json.evaluation.numericScores\n  }\n} }}",
+        "options": {}
+      },
+      "id": "9de61dca-3785-4b3d-8bc0-8d66795d1f0c",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1456,
+        1632
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ \"https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/voice-calls/by-conversation/\" + $json.conversationId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        704,
+        1712
+      ],
+      "id": "b72d64c3-8c7f-46d9-82f1-4f148798f2de",
+      "name": "Get Patient Info"
+    },
+    {
+      "parameters": {
+        "jsCode": "const parseData = $('Parse Event').first().json;\nconst patientResponse = $input.first().json;\n\nconsole.log('📋 Merging call + patient data');\nconsole.log('Patient response:', patientResponse);\n\nconst patientData = patientResponse.data || {};\n\n// Extract transcript from rawData\nconst transcript = parseData.rawData?.data?.transcript || [];\nconst transcriptText = transcript\n  .map(t => `${t.role}: ${t.message}`)\n  .join('\\n');\n\n// User answers\nconst userAnswers = transcript\n  .filter(t => t.role === 'user')\n  .map(t => String(t.message).trim());\n\n// Numeric scores\nconst numericScores = userAnswers\n  .map(msg => Number(msg))\n  .filter(n => !isNaN(n) && n > 0 && n <= 10);\n\n// Merged data\nconst merged = {\n  conversationId: parseData.conversationId,\n  patientName: patientData.patientName || 'Unknown',\n  phone: patientData.phone || 'N/A',\n  appointmentId: patientData.appointmentId || 'N/A',\n  doctor: patientData.doctor || 'N/A',\n  appointmentDate: patientData.appointmentDate || 'N/A',\n  transcript: transcriptText,\n  userAnswers,\n  numericScores,\n  rawEventData: parseData.rawData\n};\n\nconsole.log('✅ Merged:', {\n  patient: merged.patientName,\n  scores: merged.numericScores\n});\n\nreturn [{ json: merged }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        1712
+      ],
+      "id": "b6cc69de-0465-4216-8add-51bd6e99438c",
+      "name": "Merge Data"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $input.first().json;\n\nconst numericScores = item.numericScores || [];\nconst hasLowScores = numericScores.some(n => n <= 3);\nconst avgScore = numericScores.length > 0\n  ? numericScores.reduce((a,b) => a+b) / numericScores.length\n  : 0;\n\nconst isNegative = hasLowScores || avgScore < 5;\n\nconsole.log('📊 Evaluation:', {\n  scores: numericScores,\n  avg: avgScore,\n  isNegative\n});\n\nreturn [{\n  json: {\n    ...item,\n    evaluation: {\n      numericScores,\n      hasLowScores,\n      avgScore,\n      isNegative,\n      sentiment: isNegative ? 'negative' : 'positive'\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        1712
+      ],
+      "id": "5c55bea9-79d3-40eb-8f74-c7c90fcd2371",
+      "name": "Evaluate Sentiment"
+    }
+  ],
+  "connections": {
+    "Parse Event": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Negative?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Voice1": {
+      "main": [
+        [
+          {
+            "node": "Parse Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Info": {
+      "main": [
+        [
+          {
+            "node": "Merge Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Data": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Is Negative?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Alert": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "642882b9093f3cb5bc4af5c5ec7514a71cf9ed7039e7a8e856e3612e1bd66815"
+  }
+}

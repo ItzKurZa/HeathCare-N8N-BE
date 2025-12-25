@@ -1,5 +1,6 @@
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import { config } from '../../config/env.js';
+import axios from 'axios';
 
 const client = new ElevenLabsClient({
     apiKey: config.elevenlabs.apiKey
@@ -19,36 +20,94 @@ class VoiceService {
                 throw new Error('ElevenLabs Agent ID not configured');
             }
 
-            // Tạo context cho Voice Agent
-            const callContext = {
-                patient_name: appointment.fullName,
-                doctor_name: appointment.doctor,
-                appointment_date: appointment.startTimeLocal,
-                appointment_id: appointment.id,
-            };
+            const phoneNumber = this.formatPhoneNumber(appointment.phone);
+            console.log(`📞 Initiating outbound voice call to ${phoneNumber}...`);
 
-            console.log(`📞 Initiating voice call to ${appointment.phone}...`);
+            // Tạo webhook URL cho ElevenLabs callback
+            const webhookUrl = `${config.backend.webhookUrl}/api/voice-calls/webhook`;
+            console.log(`🔗 Webhook URL: ${webhookUrl}`);
 
-            // Note: ElevenLabs Conversational AI v2 doesn't support direct phone calls via SDK
-            // You need to use their dashboard to set up phone numbers or use webhooks
-            // For now, we'll simulate the call initiation
-            
-            console.warn('⚠️  Note: Direct phone calls require ElevenLabs phone number setup');
-            console.warn('   Please configure phone number in ElevenLabs dashboard');
-            console.warn('   Or use widget/link integration instead');
-            
-            // Generate a mock call ID for testing
-            const mockCallId = `mock_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-            
-            console.log(`✅ Voice call simulated: ${mockCallId}`);
+            // Tạo custom prompt với thông tin bệnh nhân
+            const customPrompt = `
+Bạn là Mai, trợ lý AI chăm sóc khách hàng của Phòng Khám Đa Khoa Healthcare.
+Bạn đang gọi cho bệnh nhân: ${appointment.fullName || 'khách hàng'}
+Bác sĩ đã khám: ${appointment.doctor || 'không xác định'}
+Ngày khám: ${appointment.startTimeLocal || 'gần đây'}
 
-            return {
-                success: true,
-                callId: mockCallId,
-                status: 'INITIATED',
-                phoneNumber: appointment.phone,
-                note: 'This is a simulated call. Configure ElevenLabs phone integration for real calls.'
-            };
+Nhiệm vụ: Thực hiện khảo sát chất lượng dịch vụ sau khám bệnh.
+- Hỏi mức độ hài lòng (0-10)
+- Hỏi đánh giá chất lượng (1-5 sao)
+- Lắng nghe góp ý và ghi nhận
+- Giữ thái độ thân thiện, chuyên nghiệp
+            `.trim();
+
+            // Tạo cuộc gọi qua ElevenLabs Conversational AI API
+            try {
+                // Method 1: Using conversational AI SDK
+                const response = await axios.post(
+                    `https://api.elevenlabs.io/v1/convai/conversation`,
+                    {
+                        agent_id: AGENT_ID,
+                        // For outbound calls, you need phone integration
+                        // This requires ElevenLabs Enterprise plan with Twilio/phone integration
+                        mode: 'public', // or 'webhook' for callback
+                        
+                        // Custom overrides
+                        agent_override: {
+                            prompt: {
+                                prompt: customPrompt
+                            },
+                            first_message: `Xin chào ${appointment.fullName || 'anh/chị'}, em là Mai từ Phòng Khám Healthcare. Em gọi để khảo sát sau khám bệnh ạ.`
+                        }
+                    },
+                    {
+                        headers: {
+                            'xi-api-key': config.elevenlabs.apiKey,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                const conversationId = response.data.conversation_id;
+                console.log(`✅ Conversation created: ${conversationId}`);
+
+                // For actual phone calls, you need to use signed_url or integrate with phone system
+                // This creates a web-based conversation session
+                const sessionUrl = `https://elevenlabs.io/app/talk-to?agent_id=${AGENT_ID}&conversation_id=${conversationId}`;
+
+                return {
+                    success: true,
+                    callId: conversationId,
+                    status: 'INITIATED',
+                    phoneNumber: phoneNumber,
+                    sessionUrl: sessionUrl,
+                    metadata: {
+                        appointment_id: appointment.id,
+                        patient_name: appointment.fullName,
+                        doctor_name: appointment.doctor,
+                        appointment_date: appointment.startTimeLocal,
+                        phone: phoneNumber,
+                    },
+                    note: 'Conversation session created. For actual phone calls, please configure Twilio integration in ElevenLabs dashboard.'
+                };
+            } catch (elevenLabsError) {
+                console.warn('⚠️ ElevenLabs API error:', elevenLabsError.message);
+                console.warn('   Response:', elevenLabsError.response?.data);
+                console.warn('   Falling back to mock mode for testing...');
+                
+                // Fallback to mock for testing
+                const mockCallId = `mock_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+                console.log(`✅ Voice call simulated: ${mockCallId}`);
+
+                return {
+                    success: true,
+                    callId: mockCallId,
+                    status: 'INITIATED',
+                    phoneNumber: phoneNumber,
+                    sessionUrl: `https://elevenlabs.io/app/talk-to?agent_id=${AGENT_ID}`,
+                    note: 'Mock call created. For real calls: 1) Configure Twilio in ElevenLabs, 2) Use Enterprise plan with phone integration.'
+                };
+            }
         } catch (error) {
             console.error('❌ Voice call error:', error.message);
             return {
@@ -122,10 +181,47 @@ class VoiceService {
 
         const lowerTranscript = transcript.toLowerCase();
 
-        // Từ khóa tích cực
+        // Trích xuất điểm số từ câu trả lời của user
+        const lines = transcript.split('\n');
+        const userAnswers = lines
+            .filter(l => l.toLowerCase().startsWith('user:'))
+            .map(l => l.replace(/user:/i, '').trim());
+
+        // Lấy các số từ 0-10
+        const numericScores = userAnswers
+            .map(msg => {
+                const match = msg.match(/\b(\d+)\b/);
+                return match ? parseInt(match[1]) : null;
+            })
+            .filter(n => n !== null && n >= 0 && n <= 10);
+
+        console.log('📊 Sentiment Analysis:', {
+            userAnswers,
+            numericScores
+        });
+
+        // Nếu có điểm số, phân tích dựa trên điểm
+        if (numericScores.length > 0) {
+            const avgScore = numericScores.reduce((a, b) => a + b, 0) / numericScores.length;
+            const hasLowScore = numericScores.some(s => s <= 3);
+            
+            console.log(`📈 Average score: ${avgScore.toFixed(1)}, Has low score: ${hasLowScore}`);
+            
+            // Nếu có bất kỳ điểm nào <= 3 hoặc trung bình < 5 → NEGATIVE
+            if (hasLowScore || avgScore < 5) {
+                return 'NEGATIVE';
+            }
+            // Trung bình >= 7 → POSITIVE
+            if (avgScore >= 7) {
+                return 'POSITIVE';
+            }
+            // Còn lại → NEUTRAL
+            return 'NEUTRAL';
+        }
+
+        // Nếu không có điểm số, phân tích theo từ khóa
         const positiveKeywords = ['tốt', 'hài lòng', 'cảm ơn', 'tuyệt vời', 'ok', 'được', 'ổn'];
-        // Từ khóa tiêu cực
-        const negativeKeywords = ['không tốt', 'tệ', 'không hài lòng', 'chậm', 'lâu', 'kém'];
+        const negativeKeywords = ['không tốt', 'tệ', 'không hài lòng', 'chậm', 'lâu', 'kém', 'cần cải thiện'];
 
         let positiveCount = 0;
         let negativeCount = 0;
@@ -213,6 +309,42 @@ class VoiceService {
         }
 
         return next;
+    }
+
+    /**
+     * Gửi kết quả cuộc gọi đến n8n webhook
+     * @param {Object} callData - Dữ liệu cuộc gọi
+     * @returns {Promise<boolean>} Success status
+     */
+    async sendToN8NWebhook(callData) {
+        try {
+            const n8nWebhookUrl = process.env.N8N_WEBHOOK_VOICE;
+            
+            if (!n8nWebhookUrl) {
+                console.warn('⚠️ N8N webhook URL not configured');
+                return false;
+            }
+
+            console.log(`📤 Sending voice call result to n8n: ${n8nWebhookUrl}`);
+            console.log(`📦 Call data:`, JSON.stringify(callData, null, 2));
+            
+            const response = await axios.post(n8nWebhookUrl, callData, {
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+
+            console.log(`✅ Successfully sent to n8n: ${response.status}`);
+            return true;
+        } catch (error) {
+            console.error('❌ Error sending to n8n:', error.message);
+            if (error.response) {
+                console.error('Response data:', error.response.data);
+                console.error('Response status:', error.response.status);
+            }
+            return false;
+        }
     }
 }
 

@@ -1,0 +1,120 @@
+{
+  "name": "Healthcare Voice - Fixed",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-event",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "webhook-voice",
+      "name": "Webhook Voice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "healthcare-voice"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Lấy data từ webhook\nconst body = $input.item.json.body;\n\nconsole.log('📥 Received webhook data');\n\nreturn {\n  json: {\n    ...body,\n    receivedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "parse-event",
+      "name": "Parse Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const data = $input.item.json;\nconst transcript = data.data?.transcript || [];\n\nconst userMessages = transcript\n  .filter(t => t && t.role === 'user' && t.message)\n  .map(t => String(t.message).trim());\n\nconst numericScores = userMessages\n  .map(msg => Number(msg))\n  .filter(n => !isNaN(n) && n > 0 && n <= 10);\n\nconst isNegative = numericScores.length > 0 && numericScores.some(s => s <= 3);\n\nconsole.log('Scores:', numericScores, 'Negative:', isNegative);\n\nreturn {\n  json: {\n    ...data,\n    evaluation: {\n      userMessages,\n      numericScores,\n      isNegative,\n      sentiment: isNegative ? 'negative' : 'positive'\n    }\n  }\n};"
+      },
+      "id": "calculate-sentiment",
+      "name": "Calculate Sentiment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.evaluation.sentiment }}",
+              "value2": "negative"
+            }
+          ]
+        }
+      },
+      "id": "is-negative",
+      "name": "Is Negative?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/alerts/voice-alert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "send-alert",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 240]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Webhook processed\",\n  \"conversationId\": \"={{ $('Parse Event').item.json.data?.conversation_id }}\"\n}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [600, 450]
+    }
+  ],
+  "connections": {
+    "Webhook Voice": {
+      "main": [[{ "node": "Parse Event", "type": "main", "index": 0 }]]
+    },
+    "Parse Event": {
+      "main": [
+        [
+          { "node": "Calculate Sentiment", "type": "main", "index": 0 },
+          { "node": "Respond to Webhook", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Calculate Sentiment": {
+      "main": [[{ "node": "Is Negative?", "type": "main", "index": 0 }]]
+    },
+    "Is Negative?": {
+      "main": [[{ "node": "Send Alert", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {}
+}

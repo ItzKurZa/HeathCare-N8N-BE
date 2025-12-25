@@ -1,0 +1,922 @@
+{
+    "conversation_id": "conv_4101kd9wsf1vfp3v8e513fxcn16n",
+    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+    "type": "post_call_transcription",
+    "data": {
+        "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+        "conversation_id": "conv_4101kd9wsf1vfp3v8e513fxcn16n",
+        "status": "done",
+        "user_id": null,
+        "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+        "transcript": [
+            {
+                "role": "agent",
+                "agent_metadata": {
+                    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                    "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+                    "workflow_node_id": null
+                },
+                "message": "Alô, dạ chào anh/chị ạ. Em là Mai,trợ lý AI Chăm Sóc Khách Hàng từ Phòng Khám Đa Khoa Healthcare.\nEm gọi để thăm hỏi thực hiện khảo sát ngắn về trải nghiệm của anh/chị khi đến phòng khám bên em ạ. Cuộc khảo sát chỉ mất 2 phút.  Anh/chịcó thể tham gia ngay bây giờ không?",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 0,
+                "conversation_turn_metrics": {
+                    "metrics": {
+                        "convai_tts_service_ttfb": {
+                            "elapsed_time": 0.2684249909943901
+                        }
+                    }
+                },
+                "rag_retrieval_info": null,
+                "llm_usage": null,
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": null
+            },
+            {
+                "role": "user",
+                "agent_metadata": null,
+                "message": "có",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 17,
+                "conversation_turn_metrics": null,
+                "rag_retrieval_info": null,
+                "llm_usage": null,
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": "text"
+            },
+            {
+                "role": "agent",
+                "agent_metadata": {
+                    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                    "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+                    "workflow_node_id": null
+                },
+                "message": "Dạ vâng, em cảm ơn anh/chị.\nCâu hỏi đầu tiên: Trên thang điểm từ không đến mười, anh/chị đánh giá mức độ hài lòng chung về dịch vụ của phòng khám là bao nhiêu điểm ạ?\n",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 17,
+                "conversation_turn_metrics": {
+                    "metrics": {
+                        "convai_llm_service_ttf_sentence": {
+                            "elapsed_time": 0.5272747260169126
+                        },
+                        "convai_llm_service_ttfb": {
+                            "elapsed_time": 0.36232345702592283
+                        },
+                        "convai_llm_service_tt_last_sentence": {
+                            "elapsed_time": 0.733122263016412
+                        },
+                        "convai_tts_service_ttfb": {
+                            "elapsed_time": 0.15086617899942212
+                        }
+                    }
+                },
+                "rag_retrieval_info": null,
+                "llm_usage": {
+                    "model_usage": {
+                        "gemini-2.0-flash-lite": {
+                            "input": {
+                                "tokens": 1854,
+                                "price": 0.00013905
+                            },
+                            "input_cache_read": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "input_cache_write": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "output_total": {
+                                "tokens": 52,
+                                "price": 0.0000156
+                            }
+                        }
+                    }
+                },
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": null
+            },
+            {
+                "role": "user",
+                "agent_metadata": null,
+                "message": "1",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 27,
+                "conversation_turn_metrics": null,
+                "rag_retrieval_info": null,
+                "llm_usage": null,
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": "text"
+            },
+            {
+                "role": "agent",
+                "agent_metadata": {
+                    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                    "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+                    "workflow_node_id": null
+                },
+                "message": "Dạ, em cảm ơn anh/chị.\nCâu hỏi thứ hai: Anh/chị đánh giá chất lượng khám chữa bệnh mấy sao, từ một đến...",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 27,
+                "conversation_turn_metrics": {
+                    "metrics": {
+                        "convai_llm_service_ttf_sentence": {
+                            "elapsed_time": 0.41505878101452254
+                        },
+                        "convai_llm_service_ttfb": {
+                            "elapsed_time": 0.31325415399624035
+                        },
+                        "convai_llm_service_tt_last_sentence": {
+                            "elapsed_time": 0.49498410100932233
+                        },
+                        "convai_tts_service_ttfb": {
+                            "elapsed_time": 0.1606066649837885
+                        }
+                    }
+                },
+                "rag_retrieval_info": null,
+                "llm_usage": {
+                    "model_usage": {
+                        "gemini-2.0-flash-lite": {
+                            "input": {
+                                "tokens": 1907,
+                                "price": 0.000143025
+                            },
+                            "input_cache_read": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "input_cache_write": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "output_total": {
+                                "tokens": 39,
+                                "price": 0.0000117
+                            }
+                        }
+                    }
+                },
+                "interrupted": true,
+                "original_message": "Dạ, em cảm ơn anh/chị.\nCâu hỏi thứ hai: Anh/chị đánh giá chất lượng khám chữa bệnh mấy sao, từ một đến năm sao ạ?",
+                "source_medium": null
+            },
+            {
+                "role": "user",
+                "agent_metadata": null,
+                "message": "1",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 34,
+                "conversation_turn_metrics": null,
+                "rag_retrieval_info": null,
+                "llm_usage": null,
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": "text"
+            },
+            {
+                "role": "agent",
+                "agent_metadata": {
+                    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                    "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+                    "workflow_node_id": null
+                },
+                "message": "Dạ, em cảm ơn anh/chị.\nCâu hỏi thứ ba: Anh/chị đánh giá cơ sở vật chất như phòng khám, trang thiết bị mấy sao, từ một đến năm sao ạ?\n",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 34,
+                "conversation_turn_metrics": {
+                    "metrics": {
+                        "convai_llm_service_ttf_sentence": {
+                            "elapsed_time": 0.4403821279993281
+                        },
+                        "convai_llm_service_ttfb": {
+                            "elapsed_time": 0.3714899299957324
+                        },
+                        "convai_llm_service_tt_last_sentence": {
+                            "elapsed_time": 0.5740680230082944
+                        },
+                        "convai_tts_service_ttfb": {
+                            "elapsed_time": 0.15479719400173053
+                        }
+                    }
+                },
+                "rag_retrieval_info": null,
+                "llm_usage": {
+                    "model_usage": {
+                        "gemini-2.0-flash-lite": {
+                            "input": {
+                                "tokens": 1943,
+                                "price": 0.000145725
+                            },
+                            "input_cache_read": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "input_cache_write": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "output_total": {
+                                "tokens": 45,
+                                "price": 0.0000135
+                            }
+                        }
+                    }
+                },
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": null
+            },
+            {
+                "role": "user",
+                "agent_metadata": null,
+                "message": "1",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 43,
+                "conversation_turn_metrics": null,
+                "rag_retrieval_info": null,
+                "llm_usage": null,
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": "text"
+            },
+            {
+                "role": "agent",
+                "agent_metadata": {
+                    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                    "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+                    "workflow_node_id": null
+                },
+                "message": "Dạ, em cảm ơn anh/chị.\nCâu hỏi thứ tư: Anh/chị đánh giá thái độ của bác sĩ là Tốt, Bình thường, hay Cần cải thiện ạ?\n",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 44,
+                "conversation_turn_metrics": {
+                    "metrics": {
+                        "convai_llm_service_ttf_sentence": {
+                            "elapsed_time": 0.5226153170224279
+                        },
+                        "convai_llm_service_ttfb": {
+                            "elapsed_time": 0.44284574102493934
+                        },
+                        "convai_llm_service_tt_last_sentence": {
+                            "elapsed_time": 0.6480635130137671
+                        },
+                        "convai_tts_service_ttfb": {
+                            "elapsed_time": 0.14385138999205083
+                        }
+                    }
+                },
+                "rag_retrieval_info": null,
+                "llm_usage": {
+                    "model_usage": {
+                        "gemini-2.0-flash-lite": {
+                            "input": {
+                                "tokens": 1989,
+                                "price": 0.00014917499999999998
+                            },
+                            "input_cache_read": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "input_cache_write": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "output_total": {
+                                "tokens": 43,
+                                "price": 0.0000129
+                            }
+                        }
+                    }
+                },
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": null
+            },
+            {
+                "role": "user",
+                "agent_metadata": null,
+                "message": "tốt",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 52,
+                "conversation_turn_metrics": null,
+                "rag_retrieval_info": null,
+                "llm_usage": null,
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": "text"
+            },
+            {
+                "role": "agent",
+                "agent_metadata": {
+                    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                    "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+                    "workflow_node_id": null
+                },
+                "message": "Dạ, em cảm ơn anh/chị.\nThái độ của lễ tân là Tốt, Bình thường, hay Cần cải thiện ạ?\n",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 53,
+                "conversation_turn_metrics": {
+                    "metrics": {
+                        "convai_llm_service_ttf_sentence": {
+                            "elapsed_time": 0.4474077680206392
+                        },
+                        "convai_llm_service_ttfb": {
+                            "elapsed_time": 0.3334986290137749
+                        },
+                        "convai_llm_service_tt_last_sentence": {
+                            "elapsed_time": 0.5089480460155755
+                        },
+                        "convai_tts_service_ttfb": {
+                            "elapsed_time": 0.15188536199275404
+                        }
+                    }
+                },
+                "rag_retrieval_info": null,
+                "llm_usage": {
+                    "model_usage": {
+                        "gemini-2.0-flash-lite": {
+                            "input": {
+                                "tokens": 2034,
+                                "price": 0.00015255
+                            },
+                            "input_cache_read": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "input_cache_write": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "output_total": {
+                                "tokens": 33,
+                                "price": 0.0000099
+                            }
+                        }
+                    }
+                },
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": null
+            },
+            {
+                "role": "user",
+                "agent_metadata": null,
+                "message": "tốt",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 57,
+                "conversation_turn_metrics": null,
+                "rag_retrieval_info": null,
+                "llm_usage": null,
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": "text"
+            },
+            {
+                "role": "agent",
+                "agent_metadata": {
+                    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                    "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+                    "workflow_node_id": null
+                },
+                "message": "Dạ, em cảm ơn anh/chị.\nThái độ của y tá là Tốt, Bình thường, hay Cần cải...",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 58,
+                "conversation_turn_metrics": {
+                    "metrics": {
+                        "convai_llm_service_ttf_sentence": {
+                            "elapsed_time": 0.38890958597767167
+                        },
+                        "convai_llm_service_ttfb": {
+                            "elapsed_time": 0.30718008597614244
+                        },
+                        "convai_llm_service_tt_last_sentence": {
+                            "elapsed_time": 0.46749576498405077
+                        },
+                        "convai_tts_service_ttfb": {
+                            "elapsed_time": 0.156156697019469
+                        }
+                    }
+                },
+                "rag_retrieval_info": null,
+                "llm_usage": {
+                    "model_usage": {
+                        "gemini-2.0-flash-lite": {
+                            "input": {
+                                "tokens": 2069,
+                                "price": 0.000155175
+                            },
+                            "input_cache_read": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "input_cache_write": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "output_total": {
+                                "tokens": 33,
+                                "price": 0.0000099
+                            }
+                        }
+                    }
+                },
+                "interrupted": true,
+                "original_message": "Dạ, em cảm ơn anh/chị.\nThái độ của y tá là Tốt, Bình thường, hay Cần cải thiện ạ?\n",
+                "source_medium": null
+            },
+            {
+                "role": "user",
+                "agent_metadata": null,
+                "message": "tốt",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 62,
+                "conversation_turn_metrics": null,
+                "rag_retrieval_info": null,
+                "llm_usage": null,
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": "text"
+            },
+            {
+                "role": "agent",
+                "agent_metadata": {
+                    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                    "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+                    "workflow_node_id": null
+                },
+                "message": "Dạ, em cảm ơn anh/chị.\nBạn có phải chờ đợi lâu không? Nếu có, bạn đánh...",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 62,
+                "conversation_turn_metrics": {
+                    "metrics": {
+                        "convai_llm_service_ttf_sentence": {
+                            "elapsed_time": 0.47240562399383634
+                        },
+                        "convai_llm_service_ttfb": {
+                            "elapsed_time": 0.4092874829948414
+                        },
+                        "convai_llm_service_tt_last_sentence": {
+                            "elapsed_time": 0.5989426909945905
+                        },
+                        "convai_tts_service_ttfb": {
+                            "elapsed_time": 0.18273593299090862
+                        }
+                    }
+                },
+                "rag_retrieval_info": null,
+                "llm_usage": {
+                    "model_usage": {
+                        "gemini-2.0-flash-lite": {
+                            "input": {
+                                "tokens": 2101,
+                                "price": 0.000157575
+                            },
+                            "input_cache_read": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "input_cache_write": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "output_total": {
+                                "tokens": 40,
+                                "price": 0.000012
+                            }
+                        }
+                    }
+                },
+                "interrupted": true,
+                "original_message": "Dạ, em cảm ơn anh/chị.\nBạn có phải chờ đợi lâu không? Nếu có, bạn đánh giá thời gian chờ là Chấp nhận được hay Quá lâu?\n",
+                "source_medium": null
+            },
+            {
+                "role": "user",
+                "agent_metadata": null,
+                "message": "không",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 67,
+                "conversation_turn_metrics": null,
+                "rag_retrieval_info": null,
+                "llm_usage": null,
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": "text"
+            },
+            {
+                "role": "agent",
+                "agent_metadata": {
+                    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                    "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+                    "workflow_node_id": null
+                },
+                "message": "Dạ, em cảm ơn anh/chị.\nCuối cùng, anh/chị có góp ý gì khác để phòng...",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 67,
+                "conversation_turn_metrics": {
+                    "metrics": {
+                        "convai_llm_service_ttf_sentence": {
+                            "elapsed_time": 0.4077583680045791
+                        },
+                        "convai_llm_service_ttfb": {
+                            "elapsed_time": 0.3209811110282317
+                        },
+                        "convai_llm_service_tt_last_sentence": {
+                            "elapsed_time": 0.48810579400742427
+                        },
+                        "convai_tts_service_ttfb": {
+                            "elapsed_time": 0.14608901098836213
+                        }
+                    }
+                },
+                "rag_retrieval_info": null,
+                "llm_usage": {
+                    "model_usage": {
+                        "gemini-2.0-flash-lite": {
+                            "input": {
+                                "tokens": 2128,
+                                "price": 0.0001596
+                            },
+                            "input_cache_read": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "input_cache_write": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "output_total": {
+                                "tokens": 36,
+                                "price": 0.000010799999999999998
+                            }
+                        }
+                    }
+                },
+                "interrupted": true,
+                "original_message": "Dạ, em cảm ơn anh/chị.\nCuối cùng, anh/chị có góp ý gì khác để phòng khám cải thiện dịch vụ không ạ?\n",
+                "source_medium": null
+            },
+            {
+                "role": "user",
+                "agent_metadata": null,
+                "message": "không",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 71,
+                "conversation_turn_metrics": null,
+                "rag_retrieval_info": null,
+                "llm_usage": null,
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": "text"
+            },
+            {
+                "role": "agent",
+                "agent_metadata": {
+                    "agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                    "branch_id": "agtbrch_4901kd7d90ybesm95hgp80sjmw29",
+                    "workflow_node_id": null
+                },
+                "message": "Dạ, em cảm ơn anh/chị rất nhiều đã dành thời gian tham gia khảo sát! Ý kiến của anh/chị rất quan trọng để chúng tôi cải thiện chất lượng dịch vụ. Chúc anh/chị sức khỏe và một ngày tốt lành!\n",
+                "multivoice_message": null,
+                "tool_calls": [],
+                "tool_results": [],
+                "feedback": null,
+                "llm_override": null,
+                "time_in_call_secs": 72,
+                "conversation_turn_metrics": {
+                    "metrics": {
+                        "convai_llm_service_ttf_sentence": {
+                            "elapsed_time": 0.42994339400320314
+                        },
+                        "convai_llm_service_ttfb": {
+                            "elapsed_time": 0.34803441300755367
+                        },
+                        "convai_llm_service_tt_last_sentence": {
+                            "elapsed_time": 0.6047450010082684
+                        },
+                        "convai_tts_service_ttfb": {
+                            "elapsed_time": 0.19757945000310428
+                        }
+                    }
+                },
+                "rag_retrieval_info": null,
+                "llm_usage": {
+                    "model_usage": {
+                        "gemini-2.0-flash-lite": {
+                            "input": {
+                                "tokens": 2157,
+                                "price": 0.00016177500000000002
+                            },
+                            "input_cache_read": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "input_cache_write": {
+                                "tokens": 0,
+                                "price": 0
+                            },
+                            "output_total": {
+                                "tokens": 56,
+                                "price": 0.000016800000000000002
+                            }
+                        }
+                    }
+                },
+                "interrupted": false,
+                "original_message": null,
+                "source_medium": null
+            }
+        ],
+        "metadata": {
+            "start_time_unix_secs": 1766637485,
+            "accepted_time_unix_secs": 1766637485,
+            "call_duration_secs": 86,
+            "cost": 971,
+            "deletion_settings": {
+                "deletion_time_unix_secs": null,
+                "deleted_logs_at_time_unix_secs": null,
+                "deleted_audio_at_time_unix_secs": null,
+                "deleted_transcript_at_time_unix_secs": null,
+                "delete_transcript_and_pii": false,
+                "delete_audio": false
+            },
+            "feedback": {
+                "type": null,
+                "overall_score": null,
+                "likes": 0,
+                "dislikes": 0,
+                "rating": null,
+                "comment": null
+            },
+            "authorization_method": "public",
+            "charging": {
+                "dev_discount": false,
+                "is_burst": false,
+                "tier": "free",
+                "llm_usage": {
+                    "irreversible_generation": {
+                        "model_usage": {
+                            "gemini-2.0-flash-lite": {
+                                "input": {
+                                    "tokens": 18182,
+                                    "price": 0.00136365
+                                },
+                                "input_cache_read": {
+                                    "tokens": 0,
+                                    "price": 0
+                                },
+                                "input_cache_write": {
+                                    "tokens": 0,
+                                    "price": 0
+                                },
+                                "output_total": {
+                                    "tokens": 377,
+                                    "price": 0.00011309999999999998
+                                }
+                            }
+                        }
+                    },
+                    "initiated_generation": {
+                        "model_usage": {
+                            "gemini-2.0-flash-lite": {
+                                "input": {
+                                    "tokens": 18182,
+                                    "price": 0.00136365
+                                },
+                                "input_cache_read": {
+                                    "tokens": 0,
+                                    "price": 0
+                                },
+                                "input_cache_write": {
+                                    "tokens": 0,
+                                    "price": 0
+                                },
+                                "output_total": {
+                                    "tokens": 377,
+                                    "price": 0.00011309999999999998
+                                }
+                            }
+                        }
+                    }
+                },
+                "llm_price": 0.0014767500000000002,
+                "llm_charge": 15,
+                "call_charge": 956,
+                "free_minutes_consumed": 0,
+                "free_llm_dollars_consumed": 0
+            },
+            "phone_call": null,
+            "batch_call": null,
+            "termination_reason": "Client disconnected: 1005",
+            "error": null,
+            "warnings": [],
+            "main_language": "vi",
+            "rag_usage": null,
+            "text_only": false,
+            "features_usage": {
+                "language_detection": {
+                    "enabled": false,
+                    "used": false
+                },
+                "transfer_to_agent": {
+                    "enabled": false,
+                    "used": false
+                },
+                "transfer_to_number": {
+                    "enabled": false,
+                    "used": false
+                },
+                "multivoice": {
+                    "enabled": false,
+                    "used": false
+                },
+                "dtmf_tones": {
+                    "enabled": false,
+                    "used": false
+                },
+                "external_mcp_servers": {
+                    "enabled": false,
+                    "used": false
+                },
+                "pii_zrm_workspace": false,
+                "pii_zrm_agent": false,
+                "tool_dynamic_variable_updates": {
+                    "enabled": false,
+                    "used": false
+                },
+                "is_livekit": false,
+                "voicemail_detection": {
+                    "enabled": false,
+                    "used": false
+                },
+                "workflow": {
+                    "enabled": false,
+                    "tool_node": {
+                        "enabled": false,
+                        "used": false
+                    },
+                    "standalone_agent_node": {
+                        "enabled": false,
+                        "used": false
+                    },
+                    "phone_number_node": {
+                        "enabled": false,
+                        "used": false
+                    },
+                    "end_node": {
+                        "enabled": false,
+                        "used": false
+                    }
+                },
+                "agent_testing": {
+                    "enabled": false,
+                    "tests_ran_after_last_modification": false,
+                    "tests_ran_in_last_7_days": false
+                },
+                "versioning": {
+                    "enabled": true,
+                    "used": false
+                }
+            },
+            "eleven_assistant": {
+                "is_eleven_assistant": false
+            },
+            "initiator_id": null,
+            "conversation_initiation_source": "react_sdk",
+            "conversation_initiation_source_version": "0.5.0",
+            "timezone": null,
+            "initiation_trigger": {
+                "trigger_type": "default"
+            },
+            "async_metadata": null,
+            "whatsapp": null,
+            "agent_created_from": "ui",
+            "agent_last_updated_from": "ui"
+        },
+        "analysis": {
+            "evaluation_criteria_results": {},
+            "data_collection_results": {},
+            "call_successful": "success",
+            "transcript_summary": "The AI agent, Mai, called a user to conduct a customer service survey for Healthcare Clinic. The user agreed to participate and answered questions about their satisfaction with the clinic's services. The user rated the overall service, quality of care, and facilities as 1 out of 1-10 or 1-5 stars, but rated the attitude of doctors, receptionists and nurses as \"good\". They reported no waiting time and had no further comments. The agent thanked the user for their time and feedback.\n",
+            "call_summary_title": "Healthcare Clinic Survey"
+        },
+        "conversation_initiation_client_data": {
+            "conversation_config_override": {
+                "turn": null,
+                "tts": {
+                    "voice_id": null,
+                    "stability": null,
+                    "speed": null,
+                    "similarity_boost": null
+                },
+                "conversation": {
+                    "text_only": null
+                },
+                "agent": {
+                    "first_message": null,
+                    "language": null,
+                    "prompt": null
+                }
+            },
+            "custom_llm_extra_body": {},
+            "user_id": null,
+            "source_info": {
+                "source": "react_sdk",
+                "version": "0.5.0"
+            },
+            "dynamic_variables": {
+                "system__agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                "system__agent_turns": 10,
+                "system__current_agent_turns": 10,
+                "system__current_subagent_turns": 10,
+                "system__current_agent_id": "agent_0301kd7d8z2ae25rnr5ear1qxhft",
+                "system__conversation_id": "conv_4101kd9wsf1vfp3v8e513fxcn16n",
+                "system__call_duration_secs": 86,
+                "system__time_utc": "2025-12-25T04:39:31.174767+00:00",
+                "system__time": "Thursday, 04:39 25 December 2025",
+                "system__timezone": null,
+                "system__caller_id": null,
+                "system__called_number": null,
+                "system__call_sid": null
+            }
+        },
+        "ref": "conv_4101kd9wsf1vfp3v8e513fxcn16n"
+    },
+    "ref": "conv_4101kd9wsf1vfp3v8e513fxcn16n"
+}

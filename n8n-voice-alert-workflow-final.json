@@ -1,0 +1,223 @@
+{
+  "name": "Voice Survey Alert - FIXED",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-event",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "webhook-voice",
+      "name": "Webhook Voice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300],
+      "webhookId": "healthcare-voice"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse ElevenLabs webhook data\nconst rawData = $input.item.json;\n\nconsole.log('📥 ElevenLabs Webhook received:', JSON.stringify(rawData, null, 2));\n\nconst processedData = {\n  conversationId: rawData.conversation_id,\n  transcript: rawData.transcript || '',\n  analysis: rawData.analysis || {},\n  metadata: rawData.metadata || {},\n  eventType: rawData.type || 'conversation.ended',\n  timestamp: new Date().toISOString()\n};\n\nconsole.log('✅ Parsed conversation_id:', processedData.conversationId);\n\nreturn { json: processedData };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 300],
+      "id": "parse-event",
+      "name": "Parse Event"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ \"https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/voice-calls/by-conversation/\" + $json.conversationId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "id": "get-patient-info",
+      "name": "Get Patient Info"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge ElevenLabs data with patient info from backend\nconst elevenLabsData = $input.first().json;\nconst backendResponse = $input.all()[1].json;\n\nconsole.log('🔗 Merging data...');\nconsole.log('ElevenLabs:', elevenLabsData);\nconsole.log('Backend:', backendResponse);\n\nconst patientData = backendResponse.data || {};\n\nconst mergedData = {\n  // Patient info from backend\n  conversationId: patientData.conversationId || elevenLabsData.conversationId,\n  appointmentId: patientData.appointmentId,\n  patientName: patientData.patientName,\n  phone: patientData.phone,\n  doctor: patientData.doctor,\n  appointmentDate: patientData.appointmentDate,\n  \n  // Call data from ElevenLabs\n  transcript: elevenLabsData.transcript,\n  analysis: elevenLabsData.analysis,\n  metadata: elevenLabsData.metadata,\n  \n  // Sentiment from backend (already analyzed)\n  sentiment: patientData.sentiment || 'UNKNOWN',\n  callStatus: patientData.callStatus\n};\n\nconsole.log('✅ Merged data:', {\n  patientName: mergedData.patientName,\n  sentiment: mergedData.sentiment,\n  conversationId: mergedData.conversationId\n});\n\nreturn { json: mergedData };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "id": "merge-data",
+      "name": "Merge Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\n\nconst sentiment = item.sentiment || 'UNKNOWN';\nconst transcript = item.transcript || '';\n\n// Parse numeric scores from transcript\nconst lines = transcript.split('\\n');\nconst userAnswers = lines\n  .filter(l => l.toLowerCase().startsWith('user:'))\n  .map(l => l.replace(/user:/i, '').trim());\n\nconst numericScores = userAnswers\n  .map(msg => {\n    const match = msg.match(/\\b(\\d+)\\b/);\n    return match ? parseInt(match[1]) : null;\n  })\n  .filter(n => n !== null && n >= 0 && n <= 10);\n\nconst hasLowScores = numericScores.some(n => n <= 3);\nconst isNegative = sentiment.toUpperCase() === 'NEGATIVE';\n\nconsole.log('📊 Evaluation:', {\n  sentiment,\n  isNegative,\n  hasLowScores,\n  numericScores\n});\n\nreturn {\n  json: {\n    ...item,\n    evaluation: {\n      sentiment,\n      isNegative,\n      hasLowScores,\n      userAnswers,\n      numericScores\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300],
+      "id": "evaluate-sentiment",
+      "name": "Evaluate Sentiment"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "negative-check",
+              "leftValue": "={{ $json.evaluation.isNegative }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "low-scores-check",
+              "leftValue": "={{ $json.evaluation.hasLowScores }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "is-negative",
+      "name": "Is Negative?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/alerts/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"patientName\": $json.patientName,\n  \"phone\": $json.phone,\n  \"appointmentId\": $json.appointmentId,\n  \"conversationId\": $json.conversationId,\n  \"sentiment\": $json.sentiment,\n  \"transcript\": $json.transcript,\n  \"nps\": $json.evaluation.numericScores[0] || 0,\n  \"surveyData\": {\n    \"userAnswers\": $json.evaluation.userAnswers,\n    \"numericScores\": $json.evaluation.numericScores\n  },\n  \"analysis\": $json.analysis\n} }}",
+        "options": {}
+      },
+      "id": "send-alert",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"message\": \"Webhook processed successfully\",\n  \"conversationId\": $json.conversationId,\n  \"patientName\": $json.patientName,\n  \"sentiment\": $json.evaluation?.sentiment || $json.sentiment,\n  \"alertSent\": $json.evaluation?.isNegative || false,\n  \"timestamp\": new Date().toISOString()\n} }}",
+        "options": {}
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Voice": {
+      "main": [
+        [
+          {
+            "node": "Parse Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Event": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Is Negative?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Negative?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Alert": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-12-25T05:54:00.000Z",
+  "versionId": "1"
+}

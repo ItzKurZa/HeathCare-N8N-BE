@@ -33,6 +33,24 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Root endpoint
+app.get('/', (req, res) => {
+    res.json({ 
+        message: 'Healthcare CSKH API',
+        version: '1.0.0',
+        status: 'running',
+        endpoints: {
+            health: '/health',
+            appointments: '/api/appointments',
+            surveys: '/api/surveys',
+            emails: '/api/emails',
+            ai: '/api/ai',
+            alerts: '/api/alerts',
+            voiceCalls: '/api/voice-calls'
+        }
+    });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({ 

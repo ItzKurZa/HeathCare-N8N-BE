@@ -1,0 +1,214 @@
+{
+  "name": "Healthcare Voice Survey - FIXED",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-event",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "webhook-voice",
+      "name": "Webhook Voice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "healthcare-voice"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const data = $input.item.json;\n\nconsole.log('📥 Webhook data received:', JSON.stringify(data, null, 2));\n\n// Backend đã gửi data structured sẵn với patient info\nconst processedData = {\n  conversationId: data.conversation_id,\n  appointmentId: data.appointment_id,\n  patientName: data.patient_name,\n  phone: data.phone,\n  status: data.status,\n  transcript: data.transcript,\n  sentiment: data.sentiment,\n  analysis: data.analysis,\n  aiAnalysis: data.ai_analysis,\n  metadata: data.metadata,\n  eventType: data.type,\n  rawData: data\n};\n\nconsole.log('✅ Parsed data:', {\n  patientName: processedData.patientName,\n  sentiment: processedData.sentiment,\n  hasTranscript: !!processedData.transcript\n});\n\nreturn { json: processedData };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "id": "parse-event",
+      "name": "Parse Event"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const item = $input.item.json;\n\n// Sentiment đã được backend phân tích\nconst sentiment = item.sentiment || 'unknown';\nconst isNegative = sentiment === 'negative';\n\n// Parse transcript để lấy numeric scores (nếu cần)\nconst transcript = item.transcript || '';\nconst lines = transcript.split('\\n');\nconst userAnswers = lines\n  .filter(l => l.startsWith('User:'))\n  .map(l => l.replace('User:', '').trim());\n\nconst numericScores = userAnswers\n  .map(msg => Number(msg))\n  .filter(n => !isNaN(n) && n > 0);\n\nconst hasLowScores = numericScores.some(n => n <= 3);\n\nconsole.log('📊 Evaluation:', {\n  sentiment,\n  isNegative,\n  hasLowScores,\n  numericScores\n});\n\nreturn {\n  json: {\n    ...item,\n    evaluation: {\n      sentiment: sentiment,\n      isNegative: isNegative,\n      userAnswers: userAnswers,\n      numericScores: numericScores,\n      hasLowScores: hasLowScores\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "id": "evaluate-sentiment",
+      "name": "Evaluate Sentiment"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-negative",
+              "leftValue": "={{ $json.evaluation.sentiment }}",
+              "rightValue": "negative",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-low-scores",
+              "leftValue": "={{ $json.evaluation.hasLowScores }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "is-negative",
+      "name": "Is Negative?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/alerts/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "ngrok-skip-browser-warning",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"patientName\": \"{{ $json.patientName }}\",\n  \"phone\": \"{{ $json.phone }}\",\n  \"appointmentId\": \"{{ $json.appointmentId }}\",\n  \"conversationId\": \"{{ $json.conversationId }}\",\n  \"sentiment\": \"{{ $json.sentiment }}\",\n  \"transcript\": \"{{ $json.transcript }}\",\n  \"surveyData\": {\n    \"userAnswers\": {{ JSON.stringify($json.evaluation.userAnswers) }},\n    \"numericScores\": {{ JSON.stringify($json.evaluation.numericScores) }}\n  },\n  \"analysis\": {{ JSON.stringify($json.analysis) }}\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-alert",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Webhook processed successfully\",\n  \"conversationId\": \"{{ $json.conversationId }}\",\n  \"patientName\": \"{{ $json.patientName }}\",\n  \"sentiment\": \"{{ $json.evaluation.sentiment }}\",\n  \"alertSent\": {{ $json.evaluation.isNegative }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Log chi tiết để debug\nconst item = $input.item.json;\n\nconsole.log('🔍 Full data structure:', JSON.stringify(item, null, 2));\nconsole.log('Patient Name:', item.patientName);\nconsole.log('Phone:', item.phone);\nconsole.log('Sentiment:', item.sentiment);\nconsole.log('Evaluation:', item.evaluation);\n\nreturn { json: item };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 500],
+      "id": "debug-log",
+      "name": "Debug Log"
+    }
+  ],
+  "connections": {
+    "Webhook Voice": {
+      "main": [
+        [
+          {
+            "node": "Parse Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Event": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Sentiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Sentiment": {
+      "main": [
+        [
+          {
+            "node": "Is Negative?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Debug Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Negative?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Alert": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-12-25T00:00:00.000Z",
+  "versionId": "1"
+}

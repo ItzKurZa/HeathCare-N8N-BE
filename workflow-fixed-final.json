@@ -1,0 +1,109 @@
+{
+  "name": "Healthcare Voice - FIXED FINAL",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "voice-event",
+        "responseMode": "responseNode",
+        "options": {"rawBody": true}
+      },
+      "id": "webhook-voice",
+      "name": "Webhook Voice",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "healthcare-voice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nconst body = inputData.body || inputData;\n\nconsole.log('📥 Received webhook');\n\nreturn [{ json: body }];"
+      },
+      "id": "parse",
+      "name": "Parse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst transcript = data.data?.transcript || [];\n\nconst scores = transcript\n  .filter(t => t.role === 'user')\n  .map(t => Number(t.message))\n  .filter(n => !isNaN(n) && n > 0 && n <= 10);\n\nconst isNegative = scores.length > 0 && scores.some(s => s <= 3);\n\nconsole.log('Scores:', scores, 'Negative:', isNegative);\n\nreturn [{\n  json: {\n    ...data,\n    sentiment: isNegative ? 'negative' : 'positive',\n    scores: scores\n  }\n}];"
+      },
+      "id": "calculate",
+      "name": "Calculate Sentiment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.sentiment }}",
+              "value2": "negative"
+            }
+          ]
+        }
+      },
+      "id": "check-negative",
+      "name": "Is Negative?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://bennett-unvanquishable-liquidly.ngrok-free.dev/api/alerts/voice-alert",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"},
+            {"name": "ngrok-skip-browser-warning", "value": "true"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "send-alert",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 240]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"conversationId\": \"{{ $('Parse').item.json.data?.conversation_id }}\" }",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [600, 450]
+    }
+  ],
+  "connections": {
+    "Webhook Voice": {
+      "main": [[{"node": "Parse", "type": "main", "index": 0}]]
+    },
+    "Parse": {
+      "main": [
+        [
+          {"node": "Calculate Sentiment", "type": "main", "index": 0},
+          {"node": "Respond", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Calculate Sentiment": {
+      "main": [[{"node": "Is Negative?", "type": "main", "index": 0}]]
+    },
+    "Is Negative?": {
+      "main": [[{"node": "Send Alert", "type": "main", "index": 0}]]
+    }
+  }
+}

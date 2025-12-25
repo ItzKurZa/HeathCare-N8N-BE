@@ -10,30 +10,72 @@ const router = express.Router();
  */
 router.post('/send', async (req, res, next) => {
   try {
-    const { surveyData, aiAnalysis } = req.body;
+    console.log('🚨 Alert send request body:', JSON.stringify(req.body, null, 2));
+    
+    // Extract data - support multiple nested formats from n8n
+    const body = req.body.body || req.body;
+    const rawSurveyData = body.surveyData || body;
+    const aiAnalysis = body.aiAnalysis || body.analysis || '';
+    
+    // Survey data can be nested in .data
+    const surveyData = rawSurveyData.data || rawSurveyData;
 
-    if (!surveyData) {
+    if (!surveyData || !surveyData.patientName) {
       return res.status(400).json({
         success: false,
-        error: 'Missing surveyData'
+        error: 'Missing surveyData or patientName',
+        received: { surveyData, rawSurveyData }
       });
     }
 
-    // Send alert email
-    const result = await emailService.sendAlert({
-      to: process.env.CSKH_EMAIL || 'cskh@healthcare.com',
+    // Parse userAnswers and numericScores from n8n voice workflow
+    const userAnswers = surveyData.userAnswers || [];
+    const numericScores = surveyData.numericScores || [];
+    
+    // Extract scores based on question order
+    const npsScore = numericScores[0] || surveyData.nps || 0;
+    const csatScore = numericScores[1] || surveyData.csat || 0;
+    const facilityScore = numericScores[2] || surveyData.facility || 0;
+    
+    // Extract text answers (Tốt/Bình thường/Cần cải thiện)
+    const staffDoctor = userAnswers[3] || surveyData.staff_doctor || null;
+    const staffReception = userAnswers[4] || surveyData.staff_reception || null;
+    const staffNurse = userAnswers[5] || surveyData.staff_nurse || null;
+    const waitingTime = userAnswers[6] || surveyData.waiting_time || null;
+    const comment = userAnswers[7] || surveyData.comment || '';
+    
+    // Calculate overall score from numeric scores
+    const overall_score = numericScores.length > 0
+      ? numericScores.reduce((a, b) => a + b, 0) / numericScores.length
+      : (surveyData.overall_score || rawSurveyData.overall_score || 0);
+
+    // Ensure required fields have defaults
+    const normalizedSurveyData = {
       patientName: surveyData.patientName || 'Bệnh nhân',
-      appointmentId: surveyData.appointmentId,
-      score: surveyData.overall_score,
-      feedback: surveyData.feedback,
-      analysis: aiAnalysis
-    });
+      phone: surveyData.phone || 'N/A',
+      appointmentId: surveyData.appointmentId || rawSurveyData.surveyId || 'N/A',
+      nps: npsScore,
+      csat: csatScore,
+      facility: facilityScore,
+      overall_score: overall_score,
+      staff_doctor: staffDoctor,
+      staff_reception: staffReception,
+      staff_nurse: staffNurse,
+      waiting_time: waitingTime,
+      comment: comment,
+      submittedAt: surveyData.submittedAt || new Date()
+    };
+
+    console.log('📧 Sending alert for:', normalizedSurveyData.patientName);
+
+    // Send alert email
+    const result = await emailService.sendAlert(normalizedSurveyData, aiAnalysis);
 
     // Save alert to database
     const alertDoc = await db.collection('alerts').add({
       type: 'SURVEY_LOW_RATING',
-      appointmentId: surveyData.appointmentId,
-      surveyData,
+      appointmentId: normalizedSurveyData.appointmentId,
+      surveyData: normalizedSurveyData,
       aiAnalysis,
       emailSent: result.success,
       emailId: result.messageId,
@@ -51,6 +93,7 @@ router.post('/send', async (req, res, next) => {
       }
     });
   } catch (error) {
+    console.error('❌ Alert send error:', error);
     next(error);
   }
 });
@@ -61,38 +104,56 @@ router.post('/send', async (req, res, next) => {
  */
 router.post('/voice-alert', async (req, res, next) => {
   try {
-    const { callData } = req.body;
-
-    if (!callData) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing callData'
-      });
+    console.log('🚨 Voice alert received:', JSON.stringify(req.body, null, 2));
+    
+    // Support multiple formats from n8n
+    const data = req.body.callData || req.body;
+    
+    // Extract transcript
+    let transcriptText = '';
+    if (data.transcript) {
+      if (Array.isArray(data.transcript)) {
+        transcriptText = data.transcript.map(t => 
+          `${t.role === 'agent' ? 'Agent' : 'User'}: ${t.message}`
+        ).join('\n');
+      } else {
+        transcriptText = data.transcript;
+      }
     }
 
     const cskhEmail = process.env.CSKH_EMAIL || 'cskh@healthcare.com';
+    
+    // Determine sentiment
+    const sentiment = data.sentiment || data.evaluation?.sentiment || 'unknown';
+    const isNegative = sentiment === 'negative' || data.evaluation?.isNegative;
+    
+    console.log('📧 Sending voice alert email to:', cskhEmail);
+    console.log('- Sentiment:', sentiment, '(negative?', isNegative, ')');
 
     // Send voice call alert email
     const result = await emailService.sendAlert({
       to: cskhEmail,
-      patientName: callData.appointment?.patientName || callData.patientName || 'Bệnh nhân',
-      appointmentId: callData.appointmentId,
-      score: callData.sentiment === 'negative' ? 3 : callData.sentiment === 'neutral' ? 5 : 8,
-      feedback: callData.transcript || 'Voice call completed',
-      analysis: callData.insights || callData.analysis
+      patientName: data.patientName || 'Khách hàng',
+      appointmentId: data.appointmentId || data.conversationId || 'N/A',
+      score: isNegative ? 1 : 5,
+      feedback: transcriptText || 'Voice call completed',
+      analysis: data.analysis?.transcript_summary || data.aiAnalysis || 'Negative feedback detected'
     });
 
     // Save alert to database
     const alertDoc = await db.collection('alerts').add({
       type: 'VOICE_CALL_NEGATIVE',
-      callId: callData.callId,
-      appointmentId: callData.appointmentId,
-      callData,
+      conversationId: data.conversationId || data.conversation_id,
+      agentId: data.agentId || data.agent_id,
+      sentiment: sentiment,
+      callData: data,
       emailSent: result.success,
       emailId: result.messageId,
       createdAt: new Date(),
       status: 'pending'
     });
+
+    console.log('✅ Alert saved with ID:', alertDoc.id);
 
     res.json({
       success: true,
@@ -100,10 +161,12 @@ router.post('/voice-alert', async (req, res, next) => {
       data: { 
         alertId: alertDoc.id,
         emailSent: result.success,
-        emailId: result.messageId
+        emailId: result.messageId,
+        sentiment: sentiment
       }
     });
   } catch (error) {
+    console.error('❌ Voice alert error:', error);
     next(error);
   }
 });
