@@ -87,7 +87,7 @@ router.get('/stats/dashboard', async (req, res, next) => {
 
 /**
  * GET /api/appointments/lookup
- * Lookup appointment by phone number
+ * Tìm kiếm thông minh: Chấp nhận 09xx, 84xx, +84xx
  */
 router.get('/lookup', async (req, res, next) => {
   try {
@@ -100,39 +100,68 @@ router.get('/lookup', async (req, res, next) => {
       });
     }
 
-    console.log(`[Lookup] Searching for phone: ${phone}`);
+    // 1. Chuẩn hóa các biến thể số điện thoại
+    const cleanPhone = phone.replace(/\D/g, ''); // Xóa dấu +, khoảng trắng
+    let phoneVariations = [];
 
-    // CÁCH 1: Tìm theo trường 'phone'
+    if (cleanPhone.startsWith('84')) {
+      // Nếu là 84944... -> Thêm 0944... và +84944...
+      const localPhone = '0' + cleanPhone.slice(2);
+      phoneVariations = [
+        cleanPhone,             // 84944...
+        '+' + cleanPhone,       // +84944...
+        localPhone              // 0944...
+      ];
+    } else if (cleanPhone.startsWith('0')) {
+      // Nếu là 0944... -> Thêm 84944... và +84944...
+      const qtPhone = '84' + cleanPhone.slice(1);
+      phoneVariations = [
+        phone,                  // 0944... (giữ nguyên input gốc)
+        cleanPhone,             // 0944... (đã clean)
+        qtPhone,                // 84944...
+        '+' + qtPhone           // +84944...
+      ];
+    } else {
+      phoneVariations = [phone];
+    }
+
+    console.log(`[Lookup] Searching variations:`, phoneVariations);
+
+    // 2. Query Firestore dùng toán tử 'in' (Tìm 1 trong các số này)
+    // Lưu ý: Firestore chỉ cho phép tối đa 10 giá trị trong 'in'
     let snapshot = await db.collection('appointments')
-      .where('phone', '==', phone)
+      .where('phone', 'in', phoneVariations) 
       .limit(10)
       .get();
 
-    // CÁCH 2: Nếu không thấy, tìm thử theo trường 'patientPhone' (fallback)
+    // Fallback: Nếu không tìm thấy ở 'phone', tìm tiếp ở 'patientPhone'
     if (snapshot.empty) {
-      console.log(`[Lookup] 'phone' not found, trying 'patientPhone'...`);
-      snapshot = await db.collection('appointments')
-        .where('patientPhone', '==', phone)
+       console.log(`[Lookup] Not found in 'phone', checking 'patientPhone'...`);
+       snapshot = await db.collection('appointments')
+        .where('patientPhone', 'in', phoneVariations)
         .limit(10)
         .get();
     }
 
+    // 3. Xử lý kết quả trả về
     if (snapshot.empty) {
-      console.log(`[Lookup] No appointment found for: ${phone}`);
+      // QUAN TRỌNG: Đây chính là chỗ tạo ra lỗi 404 bạn đang thấy
+      console.log(`[Lookup] Failed to find appointment for: ${phone}`);
       return res.status(404).json({
         success: false,
-        error: 'Không tìm thấy lịch hẹn với số điện thoại này'
+        error: `Không tìm thấy lịch hẹn nào với số: ${phone}`
       });
     }
 
-    // Get the most recent appointment
+    // Lấy lịch hẹn mới nhất
     let latestDoc = null;
     let latestDate = null;
     
     snapshot.forEach(doc => {
       const data = doc.data();
-      // FIX: Dùng created_at (theo logic query ở route gốc) thay vì createdAt
-      const createdAt = data.created_at?.toDate?.() || data.createdAt?.toDate?.() || new Date(0);
+      // Ưu tiên created_at, fallback sang createdAt
+      const createdVal = data.created_at || data.createdAt;
+      const createdAt = createdVal?.toDate?.() || new Date(0);
       
       if (!latestDate || createdAt > latestDate) {
         latestDate = createdAt;
@@ -141,26 +170,26 @@ router.get('/lookup', async (req, res, next) => {
     });
 
     const data = latestDoc;
-
-    // Map dữ liệu cẩn thận
+    
+    // Map dữ liệu trả về frontend
     const appointmentInfo = {
       id: data.id,
       bookingId: data.bookingId || data.id,
-      patientName: data.patientName || data.fullName || 'N/A', // Thêm fallback fullName
-      phone: data.phone || data.patientPhone, // Thêm fallback patientPhone
+      patientName: data.patientName || data.fullName || 'Khách hàng',
+      phone: data.phone || data.patientPhone,
       email: data.email || data.patientEmail || '',
-      doctorName: data.doctorName || data.doctor || 'N/A',
-      doctorSpecialty: data.doctorSpecialty || '',
-      appointmentDate: data.appointmentDate || latestDate?.toISOString() || '',
+      doctorName: data.doctorName || data.doctor || 'Bác sĩ',
+      appointmentDate: data.appointmentDate || latestDate?.toISOString(),
       status: data.status || 'unknown'
     };
 
-    res.json({
+    return res.json({
       success: true,
       data: appointmentInfo
     });
+
   } catch (error) {
-    console.error('Lookup error:', error);
+    console.error('[Lookup Error]:', error);
     next(error);
   }
 });
