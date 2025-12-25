@@ -10,6 +10,7 @@ class EmailService {
      * @param {string} surveyUrl - URL của biểu mẫu khảo sát
      */
     async sendSurvey(appointment, surveyUrl) {
+        console.log(appointment.email, appointment.fullName, appointment.doctor, appointment.startTimeLocal, surveyUrl);
         const msg = {
             to: appointment.email,
             from: config.sendgrid.senderEmail,

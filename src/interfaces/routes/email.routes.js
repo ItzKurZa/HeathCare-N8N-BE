@@ -46,9 +46,9 @@ router.post('/send-survey', async (req, res, next) => {
       res.json({
         success: true,
         message: 'Survey email sent successfully',
-        data: { 
+        data: {
           emailId: result.messageId,
-          surveyUrl 
+          surveyUrl
         }
       });
     } else {
