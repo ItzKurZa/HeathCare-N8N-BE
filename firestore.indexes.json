@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "voice_calls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "callStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "voice_calls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "elevenlabsCallId",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
