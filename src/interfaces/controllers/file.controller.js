@@ -2,6 +2,7 @@ import { sendMedicalFileToN8nAndCloud } from '../../usecases/medfile/uploadMedic
 import {
     saveMedicalFileMetadata,
     getUserFilesService,
+    getFileByIdService,
     deleteFileService,
 } from '../../infrastructure/services/firebase.services.js';
 import { deleteFileFromBackblaze } from '../../infrastructure/services/backblaze.services.js';
@@ -54,9 +55,23 @@ export const getUserFiles = async (req, res, next) => {
 
 export const deleteFile = async (req, res, next) => {
     try {
-        const { file_name, fileId, b2_id } = req.params;
+        const { fileId } = req.params;
+        console.log(`[Delete] Request to delete fileId: ${fileId}`);
+
+        const fileMetadata = await getFileByIdService(fileId);
+        console.log('[Delete] Found metadata:', fileMetadata);
+
+        if (fileMetadata.b2_id && fileMetadata.file_name) {
+            try {
+                await deleteFileFromBackblaze(fileMetadata.file_name, fileMetadata.b2_id);
+            } catch (b2Error) {
+                console.error('⚠️ Warning: Failed to delete from Backblaze, but continuing to delete from DB:', b2Error.message);
+            }
+        } else {
+            console.warn('⚠️ File metadata missing b2_id or file_name, skipping B2 deletion');
+        }
+
         await deleteFileService(fileId);
-        await deleteFileFromBackblaze(file_name, b2_id);
 
         res.status(200).json({
             success: true,

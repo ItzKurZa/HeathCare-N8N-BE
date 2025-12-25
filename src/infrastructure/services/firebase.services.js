@@ -111,11 +111,11 @@ export const createOrUpdateDoctorInCatalog = async ({
   status = 'active'
 }) => {
   if (!firestore) throw new Error('Firestore not initialized');
-  
+
   if (!doctor || !department) {
     throw new Error('doctor and department are required');
   }
-  
+
   // Nếu không có departmentId, tìm hoặc tạo department
   let finalDepartmentId = departmentId;
   if (!finalDepartmentId) {
@@ -139,7 +139,7 @@ export const createOrUpdateDoctorInCatalog = async ({
       finalDepartmentId = deptSnap.docs[0].id;
     }
   }
-  
+
   // Tìm doctor hiện có (ưu tiên theo user_id, sau đó theo doctor name + department)
   let existingSnap;
   if (user_id) {
@@ -148,7 +148,7 @@ export const createOrUpdateDoctorInCatalog = async ({
       .where('user_id', '==', user_id)
       .get();
   }
-  
+
   if (!existingSnap || existingSnap.empty) {
     existingSnap = await firestore
       .collection('doctors_catalog')
@@ -156,7 +156,7 @@ export const createOrUpdateDoctorInCatalog = async ({
       .where('department', '==', department.trim())
       .get();
   }
-  
+
   const now = new Date().toISOString();
   const doctorData = {
     doctor: doctor.trim(),
@@ -166,7 +166,7 @@ export const createOrUpdateDoctorInCatalog = async ({
     user_id: user_id,  // ✅ Link đến user
     updatedAt: now
   };
-  
+
   if (existingSnap.empty) {
     // Tạo mới
     doctorData.id = firestore.collection('doctors_catalog').doc().id;
@@ -183,7 +183,7 @@ export const createOrUpdateDoctorInCatalog = async ({
     await batch.commit();
     console.log(`✅ Updated ${existingSnap.size} doctor record(s) in catalog: ${doctor} - ${department} (user_id: ${user_id}, departmentId: ${finalDepartmentId})`);
   }
-  
+
   return doctorData;
 };
 
@@ -195,11 +195,11 @@ export const createOrUpdateDoctorCatalog = createOrUpdateDoctorInCatalog;
  */
 export const getDoctorCatalogByUserId = async (userId) => {
   if (!firestore) throw new Error('Firestore not initialized');
-  
+
   if (!userId) {
     return null;
   }
-  
+
   // Ưu tiên tìm với status = 'active'
   let snap = await firestore
     .collection('doctors_catalog')
@@ -207,7 +207,7 @@ export const getDoctorCatalogByUserId = async (userId) => {
     .where('status', '==', 'active')
     .limit(1)
     .get();
-  
+
   // Nếu không tìm thấy với status active, tìm bất kỳ status nào
   if (snap.empty) {
     snap = await firestore
@@ -216,11 +216,11 @@ export const getDoctorCatalogByUserId = async (userId) => {
       .limit(1)
       .get();
   }
-  
+
   if (snap.empty) {
     return null;
   }
-  
+
   return {
     id: snap.docs[0].id,
     ...snap.docs[0].data()
@@ -252,7 +252,7 @@ export const updateUserRole = async (uid, newRole, options = {}) => {
     if (!options.doctor_name || !options.department) {
       throw new Error('doctor_name and department are required for doctor role');
     }
-    
+
     // Tìm hoặc tạo department để lấy departmentId
     let departmentId = null;
     const deptSnap = await firestore
@@ -274,7 +274,7 @@ export const updateUserRole = async (uid, newRole, options = {}) => {
     } else {
       departmentId = deptSnap.docs[0].id;
     }
-    
+
     // ✅ Tạo hoặc update doctor trong catalog với user_id và departmentId
     await createOrUpdateDoctorInCatalog({
       doctor: options.doctor_name,
@@ -283,7 +283,7 @@ export const updateUserRole = async (uid, newRole, options = {}) => {
       user_id: uid,  // ✅ Link đến user
       status: 'active'
     });
-    
+
     // Update user profile
     updateData.doctor_name = options.doctor_name;
     updateData.department = options.department;
@@ -661,19 +661,19 @@ export const getRecentBookingsService = async ({
 
 export const getUserBookingsService = async (userId, options = {}) => {
   if (!firestore) throw new Error('Firestore not initialized');
-  
+
   const { page = 1, limit = 10 } = options;
   const offset = (page - 1) * limit;
-  
+
   let query = firestore
     .collection('appointments')
     .where('userId', '==', userId)
     .orderBy('createdAtUTC', 'desc');
-  
+
   // Get total count
   const totalSnap = await query.get();
   const total = totalSnap.size;
-  
+
   // Apply pagination
   if (offset > 0) {
     const offsetSnap = await query.limit(offset).get();
@@ -682,7 +682,7 @@ export const getUserBookingsService = async (userId, options = {}) => {
       query = query.startAfter(lastDoc);
     }
   }
-  
+
   const snap = await query.limit(limit).get();
 
   const bookings = [];
@@ -742,7 +742,7 @@ export const getBookingBySubmissionIdService = async (submissionId) => {
       .collection('appointments')
       .limit(1000) // Giới hạn để tránh query quá nhiều
       .get();
-    
+
     const foundDoc = allSnap.docs.find(doc => {
       const data = doc.data();
       const docSubmissionId = String(data.submissionId || '').toUpperCase().trim();
@@ -782,7 +782,7 @@ export const checkInBookingService = async (bookingId) => {
   }
 
   const bookingData = doc.data();
-  
+
   // Kiểm tra booking đã bị cancel chưa
   if (bookingData.status === 'canceled') {
     throw new Error('Booking đã bị hủy, không thể check-in');
@@ -798,17 +798,17 @@ export const checkInBookingService = async (bookingId) => {
     const appointmentTime = new Date(bookingData.startTimeUTC);
     const now = new Date();
     const fifteenMinutesBefore = new Date(appointmentTime.getTime() - 15 * 60 * 1000); // 15 phút trước giờ khám
-    
+
     console.log(`[checkInBookingService] Appointment time: ${appointmentTime.toISOString()}`);
     console.log(`[checkInBookingService] Current time: ${now.toISOString()}`);
     console.log(`[checkInBookingService] 15 minutes before: ${fifteenMinutesBefore.toISOString()}`);
-    
+
     // Kiểm tra nếu quá sớm (trước 15 phút)
     if (now < fifteenMinutesBefore) {
       const minutesUntilAllowed = Math.ceil((fifteenMinutesBefore.getTime() - now.getTime()) / (60 * 1000));
       throw new Error(`Chỉ có thể check-in trước giờ khám 15 phút. Vui lòng quay lại sau ${minutesUntilAllowed} phút nữa.`);
     }
-    
+
     // Kiểm tra nếu quá muộn (sau giờ khám)
     if (now > appointmentTime) {
       throw new Error('Đã quá giờ khám. Vui lòng liên hệ phòng khám để được hỗ trợ.');
@@ -850,7 +850,7 @@ export const updateBookingService = async (bookingId, updates) => {
   // Map status từ frontend format sang backend format
   if (updates.status) {
     updateData.status = updates.status === 'cancelled' ? 'canceled' : updates.status;
-    
+
     // Nếu cancel thì set endTimeUTC (không cần validate)
     if (updateData.status === 'canceled') {
       updateData.endTimeUTC = new Date().toISOString();
@@ -862,7 +862,7 @@ export const updateBookingService = async (bookingId, updates) => {
   // Cập nhật các field khác nếu có
   if (updates.department) updateData.department = sanitize(updates.department);
   if (updates.doctor_name || updates.doctor) updateData.doctor = sanitize(updates.doctor_name || updates.doctor);
-  
+
   // Xử lý note/reason: reason có priority cao hơn notes
   if (updates.reason) {
     updateData.note = sanitize(updates.reason);
@@ -874,7 +874,7 @@ export const updateBookingService = async (bookingId, updates) => {
   if (updateData.status !== 'canceled') {
     const newDoctor = updateData.doctor || existingData.doctor;
     const newDepartment = updateData.department || existingData.department;
-    
+
     // Tính toán newStartTimeLocal nếu có thay đổi
     let newStartTimeLocal = existingData.startTimeLocal;
     if (updates.appointment_date && updates.appointment_time) {
@@ -889,7 +889,7 @@ export const updateBookingService = async (bookingId, updates) => {
       const existingTime = existingData.startTimeLocal ? existingData.startTimeLocal.split(' ')[1] : '09:00';
       newStartTimeLocal = `${updates.appointment_date} ${existingTime}`;
     }
-    
+
     const newStartTimeUTC = newStartTimeLocal && newStartTimeLocal !== existingData.startTimeLocal
       ? localVNToUTC(newStartTimeLocal)
       : existingData.startTimeUTC;
@@ -917,7 +917,7 @@ export const updateBookingService = async (bookingId, updates) => {
       if (timeChanged && newStartTimeLocal) {
         updateData.startTimeLocal = newStartTimeLocal;
         updateData.startTimeUTC = newStartTimeUTC;
-        
+
         // Recalculate reminder
         const reminderAt = new Date(
           new Date(newStartTimeUTC).getTime() - REMINDER_BEFORE_MIN * 60 * 1000
@@ -935,7 +935,7 @@ export const updateBookingService = async (bookingId, updates) => {
     id: updatedDoc.id,
     ...updatedDoc.data(),
   };
-  
+
   // ✅ Gửi email thông báo hủy lịch nếu status = canceled
   if (updateData.status === 'canceled') {
     try {
@@ -948,7 +948,7 @@ export const updateBookingService = async (bookingId, updates) => {
       console.error('❌ Error importing sendCancelBookingEmail:', err.message);
     }
   }
-  
+
   return updatedBookingData;
 };
 
@@ -957,10 +957,10 @@ export const getStatisticsService = async () => {
 
   // Lấy tất cả appointments
   const appointmentsSnap = await firestore.collection('appointments').get();
-  
+
   // Lấy tất cả users
   const usersSnap = await firestore.collection('users').get();
-  
+
   const appointments = [];
   appointmentsSnap.forEach((doc) => {
     appointments.push(doc.data());
@@ -968,7 +968,7 @@ export const getStatisticsService = async () => {
 
   const totalPatients = usersSnap.size;
   const totalBookings = appointments.length;
-  
+
   const statusCounts = {
     pending: 0,
     confirmed: 0,
@@ -992,7 +992,7 @@ export const getStatisticsService = async () => {
     // Xử lý startTimeLocal an toàn - có thể là string, Date object, hoặc timestamp
     if (booking.startTimeLocal) {
       let dateStr = '';
-      
+
       if (typeof booking.startTimeLocal === 'string') {
         // Nếu là string, split để lấy date
         dateStr = booking.startTimeLocal.split(' ')[0];
@@ -1012,7 +1012,7 @@ export const getStatisticsService = async () => {
           dateStr = `${year}-${month}-${day}`;
         }
       }
-      
+
       if (dateStr) {
         dateCounts[dateStr] = (dateCounts[dateStr] || 0) + 1;
       }
@@ -1063,7 +1063,7 @@ export const getAllBookingsService = async (filters = {}) => {
   const bookings = [];
   snap.forEach((doc) => {
     const data = doc.data();
-    
+
     // Filter by date if provided
     if (filters.dateFrom || filters.dateTo) {
       if (data.startTimeLocal) {
@@ -1117,7 +1117,7 @@ export const updateBookingStatusService = async (bookingId, updates) => {
   }
 
   const existingDataBeforeUpdate = doc.data(); // Lưu data cũ để so sánh
-  
+
   await ref.update(updateData);
 
   const updatedDoc = await ref.get();
@@ -1125,11 +1125,11 @@ export const updateBookingStatusService = async (bookingId, updates) => {
     id: updatedDoc.id,
     ...updatedDoc.data(),
   };
-  
+
   // ✅ Gửi email thông báo
   try {
     const { sendCancelBookingEmail, sendUpdateBookingEmail } = await import('./n8n.services.js');
-    
+
     if (updateData.status === 'canceled') {
       // Gửi email hủy lịch
       sendCancelBookingEmail(updatedBookingData).catch(err => {
@@ -1149,7 +1149,7 @@ export const updateBookingStatusService = async (bookingId, updates) => {
   } catch (err) {
     console.error('❌ Error importing email functions:', err.message);
   }
-  
+
   return updatedBookingData;
 };
 
@@ -1183,7 +1183,7 @@ export const getDoctorBookingsService = async (filters) => {
     // Filter by date if provided
     if (filters.dateFrom || filters.dateTo) {
       if (data.startTimeLocal) {
-        const date = typeof data.startTimeLocal === 'string' 
+        const date = typeof data.startTimeLocal === 'string'
           ? data.startTimeLocal.split(' ')[0]
           : '';
         if (filters.dateFrom && date < filters.dateFrom) return;
@@ -1205,7 +1205,7 @@ export const getDoctorBookingsService = async (filters) => {
       query = query.startAfter(lastDoc);
     }
   }
-  
+
   const snap = await query.limit(limit).get();
 
   const bookings = [];
@@ -1215,7 +1215,7 @@ export const getDoctorBookingsService = async (filters) => {
     // Filter by date if provided
     if (filters.dateFrom || filters.dateTo) {
       if (data.startTimeLocal) {
-        const date = typeof data.startTimeLocal === 'string' 
+        const date = typeof data.startTimeLocal === 'string'
           ? data.startTimeLocal.split(' ')[0]
           : '';
         if (filters.dateFrom && date < filters.dateFrom) return;
@@ -1291,12 +1291,12 @@ export const updateScheduleAvailabilityService = async (doctorName, date, time, 
   // schedule availability separately from bookings
   // For now, we'll just log it
   console.log(`Updating schedule availability for ${doctorName} on ${date} at ${time} to ${available}`);
-  
+
   // In a real implementation, you might:
   // 1. Store availability in a separate collection
   // 2. Update existing bookings if needed
   // 3. Block new bookings for unavailable slots
-  
+
   return { success: true };
 };
 
@@ -1386,7 +1386,7 @@ export const updateBookingFromN8N = async (payload) => {
       } else {
         updateData.reminderSentAtUTC = new Date().toISOString();
       }
-      
+
       // Update status nếu chưa có
       if (!existingData.status || existingData.status === 'pending') {
         updateData.status = 'reminded';
@@ -1411,7 +1411,7 @@ export const updateBookingFromN8N = async (payload) => {
       } else {
         updateData.reminderSentAtUTC = new Date().toISOString();
       }
-      
+
       if (!existingData.status || existingData.status === 'pending') {
         updateData.status = 'reminded';
       }
@@ -1436,11 +1436,11 @@ export const updateBookingFromN8N = async (payload) => {
         const validStatuses = ['pending', 'confirmed', 'completed', 'canceled', 'reminded'];
         if (validStatuses.includes(status)) {
           updateData.status = status;
-          
+
           if (status === 'confirmed' && !existingData.confirmedAtUTC) {
             updateData.confirmedAtUTC = new Date().toISOString();
           }
-          
+
           if (status === 'completed' && !existingData.completedAtUTC) {
             updateData.completedAtUTC = new Date().toISOString();
           }
@@ -1483,7 +1483,7 @@ export const getTodayScheduleForAllDoctors = async (targetDate) => {
 
   // Parse target date hoặc dùng hôm nay
   const date = targetDate || new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  
+
   // Lấy tất cả bác sĩ active từ doctors_catalog
   const doctorsSnap = await firestore
     .collection('doctors_catalog')
@@ -1505,7 +1505,7 @@ export const getTodayScheduleForAllDoctors = async (targetDate) => {
   // Lấy tất cả appointments của ngày hôm nay
   const startOfDay = `${date} 00:00`;
   const endOfDay = `${date} 23:59`;
-  
+
   // Query appointments cho ngày này
   // Note: Firestore không hỗ trợ range query trên string, nên cần query tất cả và filter
   const appointmentsSnap = await firestore
@@ -1515,26 +1515,26 @@ export const getTodayScheduleForAllDoctors = async (targetDate) => {
 
   // Filter appointments theo date và group theo doctor
   const appointmentsByDoctor = {};
-  
+
   appointmentsSnap.forEach((doc) => {
     const data = doc.data();
     if (!data.startTimeLocal) return;
-    
+
     const appointmentDate = data.startTimeLocal.split(' ')[0];
     if (appointmentDate !== date) return;
-    
+
     const doctorName = data.doctor;
     if (!doctorName) return;
-    
+
     if (!appointmentsByDoctor[doctorName]) {
       appointmentsByDoctor[doctorName] = [];
     }
-    
+
     // Parse time từ startTimeLocal
     const timePart = data.startTimeLocal.split(' ')[1] || '';
     const [hours, minutes] = timePart.split(':');
     const time24 = `${hours}:${minutes}`;
-    
+
     appointmentsByDoctor[doctorName].push({
       id: doc.id,
       submissionId: data.submissionId,
@@ -1560,7 +1560,7 @@ export const getTodayScheduleForAllDoctors = async (targetDate) => {
   // Lấy email của từng bác sĩ từ users collection
   const doctorUserIds = doctors.filter(d => d.user_id).map(d => d.user_id);
   const userEmailsMap = {};
-  
+
   if (doctorUserIds.length > 0) {
     // Batch get users để lấy email
     const userPromises = doctorUserIds.map(async (userId) => {
@@ -1576,7 +1576,7 @@ export const getTodayScheduleForAllDoctors = async (targetDate) => {
         return { userId, email: null };
       }
     });
-    
+
     const userResults = await Promise.all(userPromises);
     userResults.forEach(({ userId, email }) => {
       userEmailsMap[userId] = email;
@@ -1609,4 +1609,19 @@ const convert24To12 = (time24) => {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return `${h12}:${minutes} ${ampm}`;
+};
+
+export const getFileByIdService = async (fileId) => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  const doc = await firestore.collection('medical_files').doc(fileId).get();
+
+  if (!doc.exists) {
+    throw new Error('File not found in database');
+  }
+
+  return {
+    id: doc.id,
+    ...doc.data(),
+  };
 };
