@@ -4,7 +4,7 @@ import { uploadMedical, getUserFiles, deleteFile } from '../controllers/file.con
 import { requireAuth } from '../../infrastructure/middlewares/auth.middleware.js';
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
 router.post('/upload', requireAuth, upload.single('file'), uploadMedical);
 router.get('/user/:userId', requireAuth, getUserFiles);
