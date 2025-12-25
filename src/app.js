@@ -11,6 +11,12 @@ import doctorRoutes from './interfaces/routes/doctor.routes.js';
 import webhookRoutes from './interfaces/routes/webhook.routes.js';
 import assetsRoutes from './interfaces/routes/assets.routes.js';
 import { errorHandler } from './infrastructure/middlewares/errorHandler.js';
+import surveyRoutes from './interfaces/routes/survey.routes.js';
+import emailRoutes from './interfaces/routes/email.routes.js';
+import aiRoutes from './interfaces/routes/ai.routes.js';
+import alertRoutes from './interfaces/routes/alert.routes.js';
+import voiceCallRoutes from './interfaces/routes/voicecall.routes.js';
+import appointmentsRoutes from './interfaces/routes/appointments.routes.js';
 
 const app = express();
 
@@ -58,6 +64,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // routes
 app.use('/api/booking', bookingRoutes);
@@ -70,6 +77,12 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/doctor', doctorRoutes);
 app.use('/api/webhook', webhookRoutes);
 app.use('/api/assets', assetsRoutes); // Public assets (logo, images, etc.)
+app.use('/api/surveys', surveyRoutes);
+app.use('/api/emails', emailRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/alerts', alertRoutes);
+app.use('/api/voice-calls', voiceCallRoutes);
+app.use('/api/appointments', appointmentsRoutes);
 
 // middleware xử lý lỗi
 app.use(errorHandler);

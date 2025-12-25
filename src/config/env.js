@@ -12,7 +12,7 @@ export const getFrontendUrl = () => {
     if (process.env.FRONTEND_URL && process.env.FRONTEND_URL !== '') {
         return process.env.FRONTEND_URL;
     }
-    
+
     // Nếu đang ở môi trường development hoặc không có FRONTEND_URL
     const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
     if (isDevelopment) {
@@ -20,7 +20,7 @@ export const getFrontendUrl = () => {
         const localProtocol = process.env.FRONTEND_PROTOCOL || 'http';
         return `${localProtocol}://localhost:${localPort}`;
     }
-    
+
     // Fallback: dùng từ config hoặc giá trị mặc định
     return process.env.FRONTEND_URL || 'https://kurza.id.vn';
 };
@@ -43,6 +43,22 @@ export const config = {
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
         privateKey: process.env.FIREBASE_PRIVATE_KEY,
         apiKey: process.env.FIREBASE_API_KEY,
+        databaseURL: process.env.FIREBASE_DATABASE_URL,
+    },
+    sendgrid: {
+        apiKey: process.env.SENDGRID_API_KEY,
+        senderEmail: process.env.SENDER_EMAIL,
+        cskhEmail: process.env.CSKH_EMAIL,
+    },
+    elevenlabs: {
+        apiKey: process.env.ELEVENLABS_API_KEY,
+        agentId: process.env.ELEVENLABS_AGENT_ID,
+    },
+    openrouter: {
+        apiKey: process.env.OPENROUTER_API_KEY,
+    },
+    survey: {
+        baseUrl: process.env.SURVEY_BASE_URL,
     },
     support: {
         phone: process.env.SUPPORT_PHONE || '84+379373619',
@@ -51,7 +67,7 @@ export const config = {
         mapUrl: process.env.MAP_URL || '',
         logoUrl: process.env.LOGO_URL || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8e57QJvOIgskjdk3BXdryire2l0RocLfRhQ&s',
     },
-     backblaze: {
+    backblaze: {
         keyId: process.env.BACKBLAZE_KEY_ID,
         appKey: process.env.BACKBLAZE_APP_KEY,
         bucketId: process.env.BACKBLAZE_BUCKET_ID,
