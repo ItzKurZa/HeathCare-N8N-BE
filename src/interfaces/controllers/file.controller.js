@@ -15,6 +15,8 @@ export const uploadMedical = async (req, res, next) => {
         const result = await sendMedicalFileToN8nAndCloud({ fields, file });
 
         console.log('🔍 N8N Response Body:', JSON.stringify(result.n8nResult, null, 2));
+        const n8nData = Array.isArray(result.n8nResult) ? result.n8nResult[0] : result.n8nResult;
+        const summaryText = n8nData?.output || n8nData?.summary || '';
 
         // Lưu metadata vào Firestore
         const fileMetadata = {
@@ -26,7 +28,7 @@ export const uploadMedical = async (req, res, next) => {
             file_type: file.mimetype,
             file_size: file.size,
             description: fields.notes || fields.description || '',
-            summary: result.n8nResult.output,
+            summary: summaryText,
             uploaded_at: new Date().toISOString(),
         };
 
