@@ -20,7 +20,7 @@ router.post('/send-survey', async (req, res, next) => {
     }
 
     // Generate survey URL
-    const surveyUrl = `${process.env.SURVEY_BASE_URL || 'http://localhost:5000/survey'}?id=${appointmentId}`;
+    const surveyUrl = `${process.env.SURVEY_BASE_URL}`;
 
     // Send email
     const result = await emailService.sendSurvey({
