@@ -19,6 +19,81 @@ router.get('/stats', getDashboardStats);
 router.get('/recent', getRecentSurveys);
 
 /**
+ * POST /api/survey/send-email
+ * Send survey email to patient (called from n8n workflow)
+ */
+router.post('/send-email', async (req, res) => {
+    try {
+        const { 
+            appointmentId, 
+            patientName, 
+            patientEmail,
+            doctorName,
+            department,
+            appointmentDate,
+            surveyUrl 
+        } = req.body;
+
+        console.log('📧 Sending survey email to:', patientEmail);
+        console.log('   Appointment:', appointmentId);
+        console.log('   Patient:', patientName);
+
+        // Validate required fields
+        if (!patientEmail || !patientName) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: patientEmail, patientName'
+            });
+        }
+
+        // Generate survey URL with appointment ID
+        const surveyLink = surveyUrl || `${config.frontendUrl}/survey?id=${appointmentId}`;
+
+        // Send email using emailService
+        const emailResult = await emailService.sendSurvey({
+            to: patientEmail,
+            patientName,
+            doctorName: doctorName || 'Bác sĩ',
+            surveyUrl: surveyLink,
+            appointmentId,
+            startTimeLocal: appointmentDate || new Date().toLocaleDateString('vi-VN')
+        });
+
+        if (emailResult.success) {
+            // Update appointment with survey sent status
+            if (appointmentId) {
+                await firestore.collection('appointments').doc(appointmentId).update({
+                    surveyStatus: 'sent',
+                    surveyEmailSentAt: new Date(),
+                    surveyUrl: surveyLink
+                });
+            }
+
+            console.log('✅ Survey email sent successfully to:', patientEmail);
+            
+            return res.json({
+                success: true,
+                message: 'Survey email sent successfully',
+                data: {
+                    appointmentId,
+                    email: patientEmail,
+                    surveyUrl: surveyLink
+                }
+            });
+        } else {
+            throw new Error('Failed to send email');
+        }
+
+    } catch (error) {
+        console.error('❌ Error sending survey email:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to send survey email'
+        });
+    }
+});
+
+/**
  * GET /api/surveys/export
  * Export surveys to Excel file (supports Vietnamese)
  */

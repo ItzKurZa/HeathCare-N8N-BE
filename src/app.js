@@ -69,6 +69,7 @@ app.use('/api/appointments', appointmentsRoutes);
 
 // Flow 1 & 2: Survey - Gửi và xử lý khảo sát
 app.use('/api/surveys', surveyRoutes);
+app.use('/api/survey', surveyRoutes); // Alias for n8n compatibility
 
 // Flow 1 & 2: Email - Gửi email khảo sát
 app.use('/api/emails', emailRoutes);
