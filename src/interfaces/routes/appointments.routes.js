@@ -227,7 +227,7 @@ router.get('/completed', async (req, res, next) => {
     const { limit = 50 } = req.query;
     const snapshot = await db.collection('appointments')
       .where('status', 'in', ['completed', 'COMPLETED', 'Completed'])
-      // .orderBy('created_at', 'desc')
+      .orderBy('created_at', 'desc')
       .limit(parseInt(limit))
       .get();
 
