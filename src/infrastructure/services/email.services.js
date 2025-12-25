@@ -12,7 +12,7 @@ class EmailService {
         const { to, patientName, doctorName, surveyUrl, appointmentDate } = params;
         console.log(to, patientName, doctorName, surveyUrl, appointmentDate);
         const msg = {
-            to: email,
+            to: to,
             from: config.sendgrid.senderEmail,
             subject: `Khảo sát hài lòng sau khám - ${patientName}`,
             html: `
@@ -56,7 +56,7 @@ class EmailService {
 
         try {
             await sgMail.send(msg);
-            console.log(`✅ Survey email sent to ${email}`);
+            console.log(`✅ Survey email sent to ${to}`);
             return { success: true };
         } catch (error) {
             console.error('❌ SendGrid survey error:', error.response?.body || error.message);
