@@ -3,7 +3,9 @@ import {
   getAllBookingsService,
   updateBookingStatusService,
   updateUserRole,
+  getAllDepartmentsService,
 } from '../../infrastructure/services/firebase.services.js';
+import { createDoctorAccount } from '../../usecases/account/createDoctorAccount.js';
 
 // Helper function để convert 24h format sang 12h format
 const convert24To12 = (time24) => {
@@ -138,6 +140,130 @@ export const updateUserRoleController = async (req, res, next) => {
       success: true,
       message: 'User role updated successfully',
       user: updatedUser,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Tạo tài khoản doctor mới
+ * POST /api/admin/doctors
+ * Body: {
+ *   email: string (required),
+ *   password: string (required),
+ *   fullname: string (optional, default: doctor_name),
+ *   doctor_name: string (required, ví dụ: "BS. Nguyễn Văn A"),
+ *   department: string (required, ví dụ: "Nội tổng quát"),
+ *   departmentId: string (optional),
+ *   phone: string (optional),
+ *   cccd: string (optional)
+ * }
+ */
+export const createDoctor = async (req, res, next) => {
+  try {
+    const { 
+      email, 
+      password, 
+      fullname, 
+      doctor_name, 
+      department, 
+      departmentId,
+      phone,
+      cccd 
+    } = req.body;
+
+    // Validate required fields
+    if (!email || !password || !doctor_name || !department) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: email, password, doctor_name, department',
+      });
+    }
+
+    // Tạo doctor account
+    const doctor = await createDoctorAccount({
+      email,
+      password,
+      fullname,
+      doctor_name,
+      department,
+      departmentId,
+      phone,
+      cccd,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Doctor account created successfully',
+      doctor: {
+        uid: doctor.uid,
+        email: doctor.email,
+        fullname: doctor.fullname,
+        doctor_name: doctor.doctor_name,
+        department: doctor.department,
+        departmentId: doctor.departmentId,
+        role: doctor.role,
+      },
+    });
+  } catch (err) {
+    // Handle Firebase Auth errors
+    if (err.code === 'auth/email-already-exists') {
+      return res.status(409).json({
+        success: false,
+        error: 'Email already exists',
+      });
+    }
+    if (err.code === 'auth/invalid-email') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format',
+      });
+    }
+    if (err.code === 'auth/weak-password') {
+      return res.status(400).json({
+        success: false,
+        error: 'Password is too weak',
+      });
+    }
+    next(err);
+  }
+};
+
+/**
+ * Lấy danh sách chi tiết tất cả departments
+ * GET /api/admin/departments
+ * Response: {
+ *   success: true,
+ *   departments: [
+ *     {
+ *       id: string,
+ *       name: string,
+ *       description: string,
+ *       totalDoctors: number,
+ *       activeDoctors: number,
+ *       totalBookings: number,
+ *       bookingsByStatus: {
+ *         pending: number,
+ *         confirmed: number,
+ *         completed: number,
+ *         canceled: number,
+ *         reminded: number
+ *       },
+ *       createdAt: string | null,
+ *       updatedAt: string | null
+ *     }
+ *   ]
+ * }
+ */
+export const getAllDepartments = async (req, res, next) => {
+  try {
+    const departments = await getAllDepartmentsService();
+    
+    return res.json({
+      success: true,
+      departments,
+      total: departments.length,
     });
   } catch (err) {
     next(err);

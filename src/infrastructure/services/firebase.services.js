@@ -1624,4 +1624,98 @@ export const getFileByIdService = async (fileId) => {
     id: doc.id,
     ...doc.data(),
   };
+}
+/**
+ * Lấy danh sách tất cả departments với thông tin chi tiết
+ * Bao gồm: số lượng doctors, số lượng bookings, bookings theo status
+ */
+export const getAllDepartmentsService = async () => {
+  if (!firestore) throw new Error('Firestore not initialized');
+
+  try {
+    // Lấy tất cả departments
+    const departmentsSnap = await firestore.collection('departments').get();
+    
+    // Lấy tất cả doctors để đếm số lượng
+    const doctorsSnap = await firestore.collection('doctors_catalog').get();
+    
+    // Lấy tất cả appointments để đếm số lượng bookings
+    const appointmentsSnap = await firestore.collection('appointments').get();
+
+    // Tạo map để đếm số lượng doctors và bookings theo department
+    const doctorsCountByDept = {};
+    const activeDoctorsCountByDept = {};
+    const bookingsCountByDept = {};
+    const bookingsByStatusByDept = {}; // { department: { pending: 0, confirmed: 0, ... } }
+
+    // Đếm doctors
+    doctorsSnap.forEach((doc) => {
+      const data = doc.data();
+      const dept = (data.department || '').trim();
+      if (dept) {
+        doctorsCountByDept[dept] = (doctorsCountByDept[dept] || 0) + 1;
+        if (data.status === 'active') {
+          activeDoctorsCountByDept[dept] = (activeDoctorsCountByDept[dept] || 0) + 1;
+        }
+      }
+    });
+
+    // Đếm bookings
+    appointmentsSnap.forEach((doc) => {
+      const data = doc.data();
+      const dept = (data.department || '').trim();
+      if (dept) {
+        bookingsCountByDept[dept] = (bookingsCountByDept[dept] || 0) + 1;
+        
+        if (!bookingsByStatusByDept[dept]) {
+          bookingsByStatusByDept[dept] = {
+            pending: 0,
+            confirmed: 0,
+            completed: 0,
+            canceled: 0,
+            reminded: 0,
+          };
+        }
+        
+        const status = data.status || 'pending';
+        if (bookingsByStatusByDept[dept][status] !== undefined) {
+          bookingsByStatusByDept[dept][status]++;
+        }
+      }
+    });
+
+    // Build departments list với thông tin chi tiết
+    const departments = [];
+    departmentsSnap.forEach((doc) => {
+      const data = doc.data();
+      const deptName = data.name || '';
+      
+      departments.push({
+        id: doc.id,
+        name: deptName,
+        description: data.description || '',
+        totalDoctors: doctorsCountByDept[deptName] || 0,
+        activeDoctors: activeDoctorsCountByDept[deptName] || 0,
+        totalBookings: bookingsCountByDept[deptName] || 0,
+        bookingsByStatus: bookingsByStatusByDept[deptName] || {
+          pending: 0,
+          confirmed: 0,
+          completed: 0,
+          canceled: 0,
+          reminded: 0,
+        },
+        createdAt: data.createdAt || data.created_at || null,
+        updatedAt: data.updatedAt || data.updated_at || null,
+      });
+    });
+
+    // Sort theo tên (Vietnamese locale)
+    const collator = new Intl.Collator('vi', { sensitivity: 'base', numeric: true });
+    departments.sort((a, b) => collator.compare(a.name, b.name));
+
+    return departments;
+  } catch (err) {
+    console.error('❌ Error fetching departments:', err);
+    throw err;
+  }
 };
