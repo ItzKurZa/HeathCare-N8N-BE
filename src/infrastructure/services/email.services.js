@@ -6,15 +6,14 @@ sgMail.setApiKey(config.sendgrid.apiKey);
 class EmailService {
     /**
      * Gửi email khảo sát cho bệnh nhân
-     * @param {Object} appointment - Thông tin appointment
-     * @param {string} surveyUrl - URL của biểu mẫu khảo sát
+     * @param {Object} params - Thông tin appointment
      */
-    async sendSurvey(appointment, surveyUrl) {
-        console.log(appointment.email, appointment.fullName, appointment.doctor, appointment.startTimeLocal, surveyUrl);
+    async sendSurvey(params) {
+        const { email, patientName, doctorName, surveyUrl, appointmentDate } = params;
         const msg = {
-            to: appointment.email,
+            to: email,
             from: config.sendgrid.senderEmail,
-            subject: `Khảo sát hài lòng sau khám - ${appointment.fullName}`,
+            subject: `Khảo sát hài lòng sau khám - ${patientName}`,
             html: `
                 <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e0e0e0;border-radius:8px;">
                     <div style="background:#007bff;color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center;">
@@ -22,9 +21,9 @@ class EmailService {
                     </div>
                     
                     <div style="padding:20px;">
-                        <p>Chào <b>${appointment.fullName}</b>,</p>
+                        <p>Chào <b>${patientName}</b>,</p>
                         
-                        <p>Cảm ơn Anh/Chị đã thăm khám với <b>${appointment.doctor}</b> vào ngày <b>${appointment.startTimeLocal}</b>.</p>
+                        <p>Cảm ơn Anh/Chị đã thăm khám với <b>${doctorName}</b> vào ngày <b>${appointmentDate}</b>.</p>
                         
                         <p>Chúng tôi rất mong nhận được phản hồi của Anh/Chị để cải thiện chất lượng dịch vụ.</p>
                         
@@ -56,7 +55,7 @@ class EmailService {
 
         try {
             await sgMail.send(msg);
-            console.log(`✅ Survey email sent to ${appointment.email}`);
+            console.log(`✅ Survey email sent to ${email}`);
             return { success: true };
         } catch (error) {
             console.error('❌ SendGrid survey error:', error.response?.body || error.message);

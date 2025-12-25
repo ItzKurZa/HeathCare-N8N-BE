@@ -10,7 +10,7 @@ const router = express.Router();
  */
 router.post('/send-survey', async (req, res, next) => {
   try {
-    const { appointmentId, email, fullName, doctor } = req.body;
+    const { appointmentId, appointmentDate, email, fullName, doctor } = req.body;
 
     if (!appointmentId || !email) {
       return res.status(400).json({
@@ -28,7 +28,7 @@ router.post('/send-survey', async (req, res, next) => {
       patientName: fullName || 'Quý khách',
       doctorName: doctor || 'Bác sĩ',
       surveyUrl,
-      appointmentId
+      appointmentDate
     });
 
     if (result.success) {
