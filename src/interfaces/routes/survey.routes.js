@@ -184,7 +184,7 @@ router.post('/submit', async (req, res) => {
             comment
         } = req.body;
 
-        // Validate required fields
+        // 1. Validate required fields
         if (!booking_id || !patient_name || !phone) {
             return res.status(400).json({
                 success: false,
@@ -192,8 +192,8 @@ router.post('/submit', async (req, res) => {
             });
         }
 
-        // Chuẩn bị dữ liệu survey
-        const surveyData = {
+        // 2. Chuẩn bị dữ liệu survey
+        const surveyData: any = {
             appointmentId: booking_id,
             patientName: patient_name,
             phone,
@@ -209,26 +209,27 @@ router.post('/submit', async (req, res) => {
             submittedAt: new Date(),
         };
 
-        // Tính điểm trung bình (0-10 scale)
-        const npsScore = surveyData.nps; // already 0-10
-        const csatScore = surveyData.csat * 2; // 0-5 -> 0-10
-        const facilityScore = surveyData.facility * 2; // 0-5 -> 0-10
-        const scores = [npsScore, csatScore, facilityScore].filter(s => s > 0);
+        // 3. Tính điểm trung bình (0-10 scale)
+        const npsScore = surveyData.nps; 
+        const csatScore = surveyData.csat * 2; 
+        const facilityScore = surveyData.facility * 2; 
+        const scores = [npsScore, csatScore, facilityScore].filter((s: number) => s > 0);
+        
         surveyData.overall_score = scores.length > 0 
-            ? scores.reduce((a, b) => a + b) / scores.length 
+            ? scores.reduce((a: number, b: number) => a + b) / scores.length 
             : 0;
 
-        // Xác định có cần cải thiện không
+        // 4. Xác định có cần cải thiện không
         surveyData.improvement_trigger = 
             surveyData.overall_score < 7 || 
-            surveyData.nps < 7 ||
+            surveyData.nps < 7 || 
             (surveyData.comment && surveyData.comment.length > 0);
 
-        // Lưu vào Firestore
+        // 5. Lưu vào Firestore
         const surveyRef = await firestore.collection('surveys').add(surveyData);
         console.log(`✅ Survey saved with ID: ${surveyRef.id}`);
 
-        // Cập nhật appointment status
+        // 6. Cập nhật appointment status
         if (booking_id) {
             const appointmentQuery = await firestore.collection('appointments')
                 .where('bookingId', '==', booking_id)
@@ -247,17 +248,12 @@ router.post('/submit', async (req, res) => {
             }
         }
 
-        // Nếu cần cải thiện -> Phân tích AI + Gửi alert
+        // 7. Nếu cần cải thiện -> Phân tích AI + Gửi alert (Chạy ngầm)
         if (surveyData.improvement_trigger) {
             console.log(`⚠️ Improvement needed for ${patient_name}, triggering AI analysis...`);
-
-            // Chạy AI analysis (async, không block response)
             aiAnalyzer.analyze(surveyData)
-                .then(async (analysis) => {
-                    // Gửi email alert cho CSKH
+                .then(async (analysis: any) => {
                     await emailService.sendAlert(surveyData, analysis);
-
-                    // Lưu alert vào Firestore
                     await firestore.collection('alerts').add({
                         surveyId: surveyRef.id,
                         appointmentId: booking_id,
@@ -265,23 +261,21 @@ router.post('/submit', async (req, res) => {
                         phone,
                         overallScore: surveyData.overall_score,
                         analysis,
-                        status: 'PENDING', // PENDING, IN_PROGRESS, RESOLVED
+                        status: 'PENDING',
                         createdAt: new Date(),
                     });
-
                     console.log(`✅ Alert created and email sent for survey ${surveyRef.id}`);
                 })
-                .catch(err => {
+                .catch((err: any) => {
                     console.error('❌ Error processing improvement trigger:', err);
                 });
         }
 
-        // Response format cho n8n workflow
-        const n8nWebhookUrl = config.n8n.webhookSurvey;
+        // 8. Chuẩn bị Response Data cho n8n và Client
         const responseData = {
             surveyId: surveyRef.id,
             overall_score: surveyData.overall_score,
-            needsImprovement: surveyData.improvement_trigger, // Key field cho n8n IF node
+            needsImprovement: surveyData.improvement_trigger,
             data: {
                 appointmentId: booking_id,
                 patientName: patient_name,
@@ -295,6 +289,11 @@ router.post('/submit', async (req, res) => {
             }
         };
 
+        // 9. Gửi Webhook sang n8n (Có kiểm tra Loop)
+        // Nếu chưa có file config, bạn thay URL trực tiếp vào đây
+        const n8nWebhookUrl = 'https://n8n.kurza.id.vn/webhook/survey-response'; 
+        
+        // Kiểm tra User-Agent để tránh vòng lặp vô tận
         const isN8nRequest = req.headers['user-agent'] && req.headers['user-agent'].includes('n8n');
 
         if (!isN8nRequest) {
@@ -303,21 +302,20 @@ router.post('/submit', async (req, res) => {
                     console.log('✅ Đã bắn data sang n8n thành công');
                 })
                 .catch((err) => {
-                    // Chỉ log lỗi, không làm crash server của bạn
                     console.error('⚠️ Lỗi khi gọi n8n:', err.message);
                 });
         } else {
             console.log('🛑 Request từ n8n - Bỏ qua việc gọi lại Webhook để tránh Loop.');
         }
 
-        // Response format cho n8n workflow
+        // 10. Trả về kết quả cho Frontend
         res.status(201).json({
             success: true,
             message: 'Survey submitted successfully',
             data: responseData
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('❌ Survey submission error:', error);
         res.status(500).json({
             success: false,
