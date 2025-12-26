@@ -3,6 +3,8 @@ import { firestore } from '../../config/firebase.js';
 import aiAnalyzer from '../../infrastructure/services/aiAnalyzer.services.js';
 import emailService from '../../infrastructure/services/email.services.js';
 import ExcelJS from 'exceljs';
+import axios from 'axois';
+import config from '../../config/env.js';
 import { 
     handleVoiceSurveyWebhook, 
     initiateVoiceSurvey,
@@ -275,6 +277,7 @@ router.post('/submit', async (req, res) => {
         }
 
         // Response format cho n8n workflow
+        const n8nWebhookUrl = config.n8n.webhookSurvey;
         const responseData = {
             surveyId: surveyRef.id,
             overall_score: surveyData.overall_score,
