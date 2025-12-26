@@ -193,7 +193,7 @@ router.post('/submit', async (req, res) => {
         }
 
         // 2. Chuẩn bị dữ liệu survey
-        const surveyData = {
+        const surveyData: any = {
             appointmentId: booking_id,
             patientName: patient_name,
             phone,
