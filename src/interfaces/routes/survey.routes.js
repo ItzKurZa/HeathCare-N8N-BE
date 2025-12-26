@@ -4,7 +4,7 @@ import aiAnalyzer from '../../infrastructure/services/aiAnalyzer.services.js';
 import emailService from '../../infrastructure/services/email.services.js';
 import ExcelJS from 'exceljs';
 import axios from 'axios';
-import config from '../../config/env.js';
+import { config } from '../../config/env.js';
 import { 
     handleVoiceSurveyWebhook, 
     initiateVoiceSurvey,
