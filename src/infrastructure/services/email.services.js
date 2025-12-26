@@ -73,18 +73,13 @@ class EmailService {
    * @param {string} aiAnalysis - Phân tích từ AI
    */
   async sendAlert(payload, aiAnalysis) {
-    // --- BƯỚC 1: CHUẨN HÓA DỮ LIỆU AN TOÀN ---
-    // Lấy data từ payload.data (nếu bị lồng) hoặc chính payload
     const data = payload.data || payload;
 
-    // Ép kiểu số an toàn (tránh lỗi undefined/null khi gọi .toFixed)
     const nps = Number(data.nps || 0);
     const csat = Number(data.csat || 0);
     const facility = Number(data.facility || 0);
-    // Lấy overall_score ưu tiên từ payload gốc nếu có, không thì tính toán lại hoặc lấy trong data
     let overallScore = Number(data.overall_score || payload.overall_score || 0);
-
-    // Thông tin khách hàng (Fallback 'N/A' nếu thiếu)
+    
     const patientName =
       data.patientName || data.full_name || data.fullName || "Khách hàng";
     const phone = data.phone || "N/A";
