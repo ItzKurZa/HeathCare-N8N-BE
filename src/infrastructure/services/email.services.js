@@ -109,13 +109,16 @@ class EmailService {
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Họ tên:</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">${patientName}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${patientName}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>SĐT:</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">${phone}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${phone}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Mã booking:</b></td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${appointmentId}</td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">${appointmentId}</td>
                             </tr>
                             <tr>
@@ -141,25 +144,31 @@ class EmailService {
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>CSAT (Customer Satisfaction):</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;">${csat}/5</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;">${csat}/5</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Cơ sở vật chất:</b></td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${facility}/5</td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">${facility}/5</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thái độ Bác sĩ:</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">${staffDoctor}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${staffDoctor}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thái độ Lễ tân:</b></td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${staffReception}</td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">${staffReception}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thái độ Điều dưỡng:</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">${staffNurse}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${staffNurse}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thời gian chờ:</b></td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${waitingTime}</td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">${waitingTime}</td>
                             </tr>
                             <tr style="background:#f9f9f9;">
@@ -178,6 +187,7 @@ class EmailService {
                         ? `
                     <div style="padding:20px;background:#f9f9f9;margin-top:20px;border-left:4px solid #f0ad4e;border-radius:4px;">
                         <h3 style="margin-top:0;">💬 Nhận xét của khách hàng</h3>
+                        <p style="font-size:16px;font-style:italic;">"${comment}"</p>
                         <p style="font-size:16px;font-style:italic;">"${comment}"</p>
                     </div>
                     `
