@@ -275,25 +275,43 @@ router.post('/submit', async (req, res) => {
         }
 
         // Response format cho n8n workflow
+        const responseData = {
+            surveyId: surveyRef.id,
+            overall_score: surveyData.overall_score,
+            needsImprovement: surveyData.improvement_trigger, // Key field cho n8n IF node
+            data: {
+                appointmentId: booking_id,
+                patientName: patient_name,
+                phone,
+                email,
+                overall_score: surveyData.overall_score,
+                nps: surveyData.nps,
+                csat: surveyData.csat,
+                facility: surveyData.facility,
+                comment: surveyData.comment
+            }
+        };
+
+        const isN8nRequest = req.headers['user-agent'] && req.headers['user-agent'].includes('n8n');
+
+        if (!isN8nRequest) {
+            axios.post(n8nWebhookUrl, responseData)
+                .then(() => {
+                    console.log('✅ Đã bắn data sang n8n thành công');
+                })
+                .catch((err) => {
+                    // Chỉ log lỗi, không làm crash server của bạn
+                    console.error('⚠️ Lỗi khi gọi n8n:', err.message);
+                });
+        } else {
+            console.log('🛑 Request từ n8n - Bỏ qua việc gọi lại Webhook để tránh Loop.');
+        }
+
+        // Response format cho n8n workflow
         res.status(201).json({
             success: true,
             message: 'Survey submitted successfully',
-            data: {
-                surveyId: surveyRef.id,
-                overall_score: surveyData.overall_score,
-                needsImprovement: surveyData.improvement_trigger, // ← Key field cho n8n IF node
-                data: {
-                    appointmentId: booking_id,
-                    patientName: patient_name,
-                    phone,
-                    email,
-                    overall_score: surveyData.overall_score,
-                    nps: surveyData.nps,
-                    csat: surveyData.csat,
-                    facility: surveyData.facility,
-                    comment: surveyData.comment
-                }
-            }
+            data: responseData
         });
 
     } catch (error) {
