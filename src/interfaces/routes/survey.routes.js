@@ -3,6 +3,8 @@ import { firestore } from '../../config/firebase.js';
 import aiAnalyzer from '../../infrastructure/services/aiAnalyzer.services.js';
 import emailService from '../../infrastructure/services/email.services.js';
 import ExcelJS from 'exceljs';
+import axios from 'axios';
+import { config } from '../../config/env.js';
 import { 
     handleVoiceSurveyWebhook, 
     initiateVoiceSurvey,
@@ -168,141 +170,160 @@ router.get('/export', async (req, res) => {
  * Webhook nhận survey response từ form
  */
 router.post('/submit', async (req, res) => {
-    try {
-        const {
-            booking_id,
-            patient_name,
-            phone,
-            email,
-            nps,
-            csat,
-            facility,
-            staff_attitude,
-            waiting_time,
-            comment
-        } = req.body;
+    try {
+        const {
+            booking_id,
+            patient_name,
+            phone,
+            email,
+            nps,
+            csat,
+            facility,
+            staff_attitude,
+            waiting_time,
+            comment
+        } = req.body;
 
-        // Validate required fields
-        if (!booking_id || !patient_name || !phone) {
-            return res.status(400).json({
-                success: false,
-                error: 'Missing required fields: booking_id, patient_name, phone'
-            });
-        }
+        // Validate required fields
+        if (!booking_id || !patient_name || !phone) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: booking_id, patient_name, phone'
+            });
+        }
 
-        // Chuẩn bị dữ liệu survey
-        const surveyData = {
-            appointmentId: booking_id,
-            patientName: patient_name,
-            phone,
-            email: email || null,
-            nps: parseInt(nps) || 0,
-            csat: parseInt(csat) || 0,
-            facility: parseInt(facility) || 0,
-            staff_doctor: staff_attitude?.doctor_label || null,
-            staff_reception: staff_attitude?.reception_label || null,
-            staff_nurse: staff_attitude?.nurse_label || null,
-            waiting_time: waiting_time || null,
-            comment: comment || null,
-            submittedAt: new Date(),
-        };
+        // Chuẩn bị dữ liệu survey
+        const surveyData = {
+            appointmentId: booking_id,
+            patientName: patient_name,
+            phone,
+            email: email || null,
+            nps: parseInt(nps) || 0,
+            csat: parseInt(csat) || 0,
+            facility: parseInt(facility) || 0,
+            staff_doctor: staff_attitude?.doctor_label || null,
+            staff_reception: staff_attitude?.reception_label || null,
+            staff_nurse: staff_attitude?.nurse_label || null,
+            waiting_time: waiting_time || null,
+            comment: comment || null,
+            submittedAt: new Date(),
+        };
 
-        // Tính điểm trung bình (0-10 scale)
-        const npsScore = surveyData.nps; // already 0-10
-        const csatScore = surveyData.csat * 2; // 0-5 -> 0-10
-        const facilityScore = surveyData.facility * 2; // 0-5 -> 0-10
-        const scores = [npsScore, csatScore, facilityScore].filter(s => s > 0);
-        surveyData.overall_score = scores.length > 0 
-            ? scores.reduce((a, b) => a + b) / scores.length 
-            : 0;
+        // Tính điểm trung bình (0-10 scale)
+        const npsScore = surveyData.nps; // already 0-10
+        const csatScore = surveyData.csat * 2; // 0-5 -> 0-10
+        const facilityScore = surveyData.facility * 2; // 0-5 -> 0-10
+        const scores = [npsScore, csatScore, facilityScore].filter(s => s > 0);
+        surveyData.overall_score = scores.length > 0 
+            ? scores.reduce((a, b) => a + b) / scores.length 
+            : 0;
 
-        // Xác định có cần cải thiện không
-        surveyData.improvement_trigger = 
-            surveyData.overall_score < 7 || 
-            surveyData.nps < 7 ||
-            (surveyData.comment && surveyData.comment.length > 0);
+        // Xác định có cần cải thiện không
+        surveyData.improvement_trigger = 
+            surveyData.overall_score < 7 || 
+            surveyData.nps < 7 ||
+            (surveyData.comment && surveyData.comment.length > 0);
 
-        // Lưu vào Firestore
-        const surveyRef = await firestore.collection('surveys').add(surveyData);
-        console.log(`✅ Survey saved with ID: ${surveyRef.id}`);
+        // Lưu vào Firestore
+        const surveyRef = await firestore.collection('surveys').add(surveyData);
+        console.log(`✅ Survey saved with ID: ${surveyRef.id}`);
 
-        // Cập nhật appointment status
-        if (booking_id) {
-            const appointmentQuery = await firestore.collection('appointments')
-                .where('bookingId', '==', booking_id)
-                .limit(1)
-                .get();
+        // Cập nhật appointment status
+        if (booking_id) {
+            const appointmentQuery = await firestore.collection('appointments')
+                .where('bookingId', '==', booking_id)
+                .limit(1)
+                .get();
 
-            if (!appointmentQuery.empty) {
-                const appointmentDoc = appointmentQuery.docs[0];
-                await appointmentDoc.ref.update({
-                    survey_completed: true,
-                    survey_completed_at: new Date(),
-                    survey_score: surveyData.overall_score,
-                    updatedAt: new Date(),
-                });
-                console.log(`✅ Appointment ${appointmentDoc.id} updated with survey completion`);
-            }
-        }
+            if (!appointmentQuery.empty) {
+                const appointmentDoc = appointmentQuery.docs[0];
+                await appointmentDoc.ref.update({
+                    survey_completed: true,
+                    survey_completed_at: new Date(),
+                    survey_score: surveyData.overall_score,
+                    updatedAt: new Date(),
+                });
+                console.log(`✅ Appointment ${appointmentDoc.id} updated with survey completion`);
+            }
+        }
 
-        // Nếu cần cải thiện -> Phân tích AI + Gửi alert
-        if (surveyData.improvement_trigger) {
-            console.log(`⚠️ Improvement needed for ${patient_name}, triggering AI analysis...`);
+        // Nếu cần cải thiện -> Phân tích AI + Gửi alert
+        if (surveyData.improvement_trigger) {
+            console.log(`⚠️ Improvement needed for ${patient_name}, triggering AI analysis...`);
 
-            // Chạy AI analysis (async, không block response)
-            aiAnalyzer.analyze(surveyData)
-                .then(async (analysis) => {
-                    // Gửi email alert cho CSKH
-                    await emailService.sendAlert(surveyData, analysis);
+            // Chạy AI analysis (async, không block response)
+            aiAnalyzer.analyze(surveyData)
+                .then(async (analysis) => {
+                    // Gửi email alert cho CSKH
+                    await emailService.sendAlert(surveyData, analysis);
 
-                    // Lưu alert vào Firestore
-                    await firestore.collection('alerts').add({
-                        surveyId: surveyRef.id,
-                        appointmentId: booking_id,
-                        patientName: patient_name,
-                        phone,
-                        overallScore: surveyData.overall_score,
-                        analysis,
-                        status: 'PENDING', // PENDING, IN_PROGRESS, RESOLVED
-                        createdAt: new Date(),
-                    });
+                    // Lưu alert vào Firestore
+                    await firestore.collection('alerts').add({
+                        surveyId: surveyRef.id,
+                        appointmentId: booking_id,
+                        patientName: patient_name,
+                        phone,
+                        overallScore: surveyData.overall_score,
+                        analysis,
+                        status: 'PENDING', // PENDING, IN_PROGRESS, RESOLVED
+                        createdAt: new Date(),
+                    });
 
-                    console.log(`✅ Alert created and email sent for survey ${surveyRef.id}`);
-                })
-                .catch(err => {
-                    console.error('❌ Error processing improvement trigger:', err);
-                });
-        }
+                    console.log(`✅ Alert created and email sent for survey ${surveyRef.id}`);
+                })
+                .catch(err => {
+                    console.error('❌ Error processing improvement trigger:', err);
+                });
+        }
 
-        // Response format cho n8n workflow
-        res.status(201).json({
-            success: true,
-            message: 'Survey submitted successfully',
-            data: {
-                surveyId: surveyRef.id,
-                overall_score: surveyData.overall_score,
-                needsImprovement: surveyData.improvement_trigger, // ← Key field cho n8n IF node
-                data: {
-                    appointmentId: booking_id,
-                    patientName: patient_name,
-                    phone,
-                    email,
-                    overall_score: surveyData.overall_score,
-                    nps: surveyData.nps,
-                    csat: surveyData.csat,
-                    facility: surveyData.facility,
-                    comment: surveyData.comment
-                }
-            }
-        });
+        // Response format cho n8n workflow
+        const n8nWebhookUrl = config.n8n.webhookSurvey;
+        const responseData = {
+            surveyId: surveyRef.id,
+            overall_score: surveyData.overall_score,
+            needsImprovement: surveyData.improvement_trigger, // Key field cho n8n IF node
+            data: {
+                appointmentId: booking_id,
+                patientName: patient_name,
+                phone,
+                email,
+                overall_score: surveyData.overall_score,
+                nps: surveyData.nps,
+                csat: surveyData.csat,
+                facility: surveyData.facility,
+                comment: surveyData.comment
+            }
+        };
 
-    } catch (error) {
-        console.error('❌ Survey submission error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
+        const isN8nRequest = req.headers['user-agent'] && req.headers['user-agent'].includes('n8n');
+
+        if (!isN8nRequest) {
+            axios.post(n8nWebhookUrl, responseData)
+                .then(() => {
+                    console.log('✅ Đã bắn data sang n8n thành công');
+                })
+                .catch((err) => {
+                    // Chỉ log lỗi, không làm crash server của bạn
+                    console.error('⚠️ Lỗi khi gọi n8n:', err.message);
+                });
+        } else {
+            console.log('🛑 Request từ n8n - Bỏ qua việc gọi lại Webhook để tránh Loop.');
+        }
+
+        // Response format cho n8n workflow
+        res.status(201).json({
+            success: true,
+            message: 'Survey submitted successfully',
+            data: responseData
+        });
+
+    } catch (error) {
+        console.error('❌ Survey submission error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
 });
 
 /**
