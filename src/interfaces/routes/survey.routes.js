@@ -198,6 +198,9 @@ router.get("/export", async (req, res) => {
  */
 router.post("/submit", async (req, res) => {
   try {
+    const isN8nRequest =
+      req.headers["user-agent"] && req.headers["user-agent"].includes("n8n");
+
     const {
       booking_id,
       patient_name,
@@ -219,7 +222,6 @@ router.post("/submit", async (req, res) => {
       });
     }
 
-    // Chuẩn bị dữ liệu survey
     const surveyData = {
       appointmentId: booking_id,
       patientName: patient_name,
@@ -236,25 +238,26 @@ router.post("/submit", async (req, res) => {
       submittedAt: new Date(),
     };
 
-    // Tính điểm trung bình (0-10 scale)
-    const npsScore = surveyData.nps; // already 0-10
+    // Tính điểm trung bình (Quy đổi về thang 10)
+    const npsScore = surveyData.nps; // 0-10
     const csatScore = surveyData.csat * 2; // 0-5 -> 0-10
     const facilityScore = surveyData.facility * 2; // 0-5 -> 0-10
+    
+    // Lọc ra các điểm > 0 để tính trung bình
     const scores = [npsScore, csatScore, facilityScore].filter((s) => s > 0);
+    
     surveyData.overall_score =
       scores.length > 0 ? scores.reduce((a, b) => a + b) / scores.length : 0;
 
-    // Xác định có cần cải thiện không
+    // Xác định có cần cải thiện không (Trigger logic)
     surveyData.improvement_trigger =
       surveyData.overall_score < 7 ||
       surveyData.nps < 7 ||
       (surveyData.comment && surveyData.comment.length > 0);
 
-    // Lưu vào Firestore
     const surveyRef = await firestore.collection("surveys").add(surveyData);
     console.log(`✅ Survey saved with ID: ${surveyRef.id}`);
 
-    // Cập nhật appointment status
     if (booking_id) {
       const appointmentQuery = await firestore
         .collection("appointments")
@@ -276,38 +279,52 @@ router.post("/submit", async (req, res) => {
       }
     }
 
-    // Nếu cần cải thiện -> Phân tích AI + Gửi alert
-    if (surveyData.improvement_trigger) {
+    if (surveyData.improvement_trigger && !isN8nRequest) {
       console.log(
-        `⚠️ Improvement needed for ${patient_name}, triggering AI analysis...`
+        `⚠️ Improvement needed for ${patient_name}, checking for duplicates...`
       );
 
-      // Chạy AI analysis (async, không block response)
-      aiAnalyzer
-        .analyze(surveyData)
-        .then(async (analysis) => {
-          // Gửi email alert cho CSKH
-          await emailService.sendAlert(surveyData, analysis);
+      const existingAlert = await firestore
+        .collection("alerts")
+        .where("appointmentId", "==", booking_id)
+        .limit(1)
+        .get();
 
-          // Lưu alert vào Firestore
-          await firestore.collection("alerts").add({
-            surveyId: surveyRef.id,
-            appointmentId: booking_id,
-            patientName: patient_name,
-            phone,
-            overallScore: surveyData.overall_score,
-            analysis,
-            status: "PENDING", // PENDING, IN_PROGRESS, RESOLVED
-            createdAt: new Date(),
+      if (existingAlert.empty) {
+        console.log(`...No duplicate found. Triggering AI analysis...`);
+        
+        aiAnalyzer
+          .analyze(surveyData)
+          .then(async (analysis) => {
+            await emailService.sendAlert(surveyData, analysis);
+
+            await firestore.collection("alerts").add({
+              surveyId: surveyRef.id,
+              appointmentId: booking_id,
+              patientName: patient_name,
+              phone,
+              overallScore: surveyData.overall_score,
+              analysis,
+              status: "PENDING",
+              createdAt: new Date(),
+            });
+
+            console.log(
+              `✅ Alert created and email sent for survey ${surveyRef.id}`
+            );
+          })
+          .catch((err) => {
+            console.error("❌ Error processing improvement trigger:", err);
           });
-
-          console.log(
-            `✅ Alert created and email sent for survey ${surveyRef.id}`
-          );
-        })
-        .catch((err) => {
-          console.error("❌ Error processing improvement trigger:", err);
-        });
+      } else {
+        console.log(
+          `🛑 Duplicate detected: Alert already exists for booking ${booking_id}. Skipping AI & Email.`
+        );
+      }
+    } else if (isN8nRequest) {
+      console.log(
+        "🤖 Request from N8N detected - Skipping Email/AI trigger to avoid Loop."
+      );
     }
 
     const n8nWebhookUrl = config.n8n.webhookSurvey;
@@ -329,9 +346,6 @@ router.post("/submit", async (req, res) => {
       },
     };
 
-    const isN8nRequest =
-      req.headers["user-agent"] && req.headers["user-agent"].includes("n8n");
-
     if (!isN8nRequest) {
       axios
         .post(n8nWebhookUrl, responseData)
@@ -343,16 +357,16 @@ router.post("/submit", async (req, res) => {
         });
     } else {
       console.log(
-        "🛑 Request từ n8n - Bỏ qua việc gọi lại Webhook để tránh Loop."
+        "🛑 Request từ n8n - Bỏ qua việc gọi lại Webhook để tránh Infinite Loop."
       );
     }
 
-    // 3. Phản hồi lại cho Frontend (React/App) ngay lập tức
     res.status(201).json({
       success: true,
       message: "Survey submitted successfully",
       data: responseData,
     });
+
   } catch (error) {
     console.error("❌ Survey submission error:", error);
     res.status(500).json({
