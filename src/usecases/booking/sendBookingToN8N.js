@@ -14,12 +14,14 @@ export const sendBookingToN8N = async (bookingData) => {
     const checkInUrl = bookingData.checkInUrl || `${frontendUrl}/check-in/${bookingCode}`;
     const backendUrlForAssets = process.env.BACKEND_URL || backendUrl;
     const logoUrl = bookingData.logoUrl || process.env.LOGO_URL || `${backendUrlForAssets}/api/assets/logo`;
+    const cancelUrl = `${frontendUrl}/booking/${bookingCode}`;
 
     const payload = { 
         ...bookingData,
         bookingCode: bookingCode,
         maDatLich: bookingCode, 
         bookingUrl: bookingUrl,
+        cancelUrl: cancelUrl,
         submissionId: bookingData.submissionId || bookingData.submission_id, 
         created_At: Date.now(),
         callbackUrl,

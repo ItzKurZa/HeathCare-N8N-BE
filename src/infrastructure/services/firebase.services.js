@@ -870,7 +870,7 @@ export const updateBookingService = async (bookingId, updates) => {
     updateData.note = sanitize(updates.notes || updates.note);
   }
 
-  // ✅ VALIDATION: Nếu update doctor/time và không phải cancel, cần validate
+  // Nếu update doctor/time và không phải cancel, cần validate
   if (updateData.status !== 'canceled') {
     const newDoctor = updateData.doctor || existingData.doctor;
     const newDepartment = updateData.department || existingData.department;
@@ -935,11 +935,11 @@ export const updateBookingService = async (bookingId, updates) => {
     id: updatedDoc.id,
     ...updatedDoc.data(),
   };
+    const { sendCancelBookingEmail, sendUpdateBookingEmail } = await import('./n8n.services.js');
 
-  // ✅ Gửi email thông báo hủy lịch nếu status = canceled
+  // Gửi email thông báo hủy lịch nếu status = canceled
   if (updateData.status === 'canceled') {
     try {
-      const { sendCancelBookingEmail } = await import('./n8n.services.js');
       // Gửi email bất đồng bộ (không chờ kết quả)
       sendCancelBookingEmail(updatedBookingData).catch(err => {
         console.error('❌ Failed to send cancel booking email:', err.message);
@@ -947,7 +947,12 @@ export const updateBookingService = async (bookingId, updates) => {
     } catch (err) {
       console.error('❌ Error importing sendCancelBookingEmail:', err.message);
     }
-  }
+  } else {
+    console.log('Booking updated, sending update email...');
+      sendUpdateBookingEmail(updatedBookingData, [`Trạng thái: ${updateData.status} → ${updateData.status}`]).catch(err => {
+          console.error('❌ Failed to send update booking email:', err.message);
+        });
+    }
 
   return updatedBookingData;
 };

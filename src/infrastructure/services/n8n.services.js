@@ -157,6 +157,8 @@ export const sendCancelBookingEmail = async (bookingData) => {
         createdAt: bookingData.createdAtUTC || '',
         status: 'canceled',
         frontendUrl: frontendUrl,
+        callbackUrl : `${backendUrl}/api/webhook/n8n/booking`,
+
         
         // Email data structure (sẽ được N8N prepare email function xử lý)
         // Gửi thêm để tương thích với template cũ
@@ -278,6 +280,8 @@ export const sendUpdateBookingEmail = async (bookingData, changes = []) => {
         createdAt: bookingData.createdAtUTC || '',
         status: bookingData.status || 'pending',
         frontendUrl: frontendUrl,
+        bookingUrl: `${frontendUrl}/booking/${bookingData.submissionId || bookingData.id}`,
+
         
         // Email data structure (sẽ được N8N prepare email function xử lý)
         // Gửi thêm để tương thích với template cũ
@@ -296,6 +300,7 @@ export const sendUpdateBookingEmail = async (bookingData, changes = []) => {
             bookingUrl: `${frontendUrl}/booking/${bookingData.submissionId || bookingData.id}`,
             cancelUrl: `${frontendUrl}/booking/${bookingData.submissionId || bookingData.id}`,
             checkInUrl: `${frontendUrl}/check-in/${bookingData.submissionId || bookingData.id}`,
+
             phoneNumber: config.support.phone,
             supportEmail: config.support.email,
             clinicAddress: config.support.address,
