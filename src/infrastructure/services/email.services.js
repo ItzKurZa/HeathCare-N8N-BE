@@ -1,21 +1,21 @@
-import sgMail from '@sendgrid/mail';
-import { config } from '../../config/env.js';
+import sgMail from "@sendgrid/mail";
+import { config } from "../../config/env.js";
 
 sgMail.setApiKey(config.sendgrid.apiKey);
 
 class EmailService {
-    /**
-     * Gửi email khảo sát cho bệnh nhân
-     * @param {Object} params - Thông tin appointment
-     */
-    async sendSurvey(params) {
-        const { to, patientName, doctorName, surveyUrl, appointmentDate } = params;
-        console.log(to, patientName, doctorName, surveyUrl, appointmentDate);
-        const msg = {
-            to: to,
-            from: config.sendgrid.senderEmail,
-            subject: `Khảo sát hài lòng sau khám - ${patientName}`,
-            html: `
+  /**
+   * Gửi email khảo sát cho bệnh nhân
+   * @param {Object} params - Thông tin appointment
+   */
+  async sendSurvey(params) {
+    const { to, patientName, doctorName, surveyUrl, appointmentDate } = params;
+    console.log(to, patientName, doctorName, surveyUrl, appointmentDate);
+    const msg = {
+      to: to,
+      from: config.sendgrid.senderEmail,
+      subject: `Khảo sát hài lòng sau khám - ${patientName}`,
+      html: `
                 <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e0e0e0;border-radius:8px;">
                     <div style="background:#007bff;color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center;">
                         <h2 style="margin:0;">Khảo Sát Hài Lòng</h2>
@@ -51,30 +51,58 @@ class EmailService {
                         <p style="font-weight:bold;">Phòng Khám Healthcare</p>
                     </div>
                 </div>
-            `
-        };
+            `,
+    };
 
-        try {
-            await sgMail.send(msg);
-            console.log(`✅ Survey email sent to ${to}`);
-            return { success: true };
-        } catch (error) {
-            console.error('❌ SendGrid survey error:', error.response?.body || error.message);
-            return { success: false, error: error.message };
-        }
+    try {
+      await sgMail.send(msg);
+      console.log(`✅ Survey email sent to ${to}`);
+      return { success: true };
+    } catch (error) {
+      console.error(
+        "❌ SendGrid survey error:",
+        error.response?.body || error.message
+      );
+      return { success: false, error: error.message };
     }
+  }
 
-    /**
-     * Gửi email cảnh báo cho CSKH khi có phản hồi tiêu cực
-     * @param {Object} surveyData - Dữ liệu khảo sát
-     * @param {string} aiAnalysis - Phân tích từ AI
-     */
-    async sendAlert(surveyData, aiAnalysis) {
-        const msg = {
-            to: config.sendgrid.cskhEmail,
-            from: config.sendgrid.senderEmail,
-            subject: `[CSKH] ⚠️ Cảnh báo phản hồi - ${surveyData.patientName} / NPS: ${surveyData.nps}`,
-            html: `
+  /**
+   * Gửi email cảnh báo cho CSKH khi có phản hồi tiêu cực
+   * @param {Object} surveyData - Dữ liệu khảo sát
+   * @param {string} aiAnalysis - Phân tích từ AI
+   */
+  async sendAlert(payload, aiAnalysis) {
+    // --- BƯỚC 1: CHUẨN HÓA DỮ LIỆU AN TOÀN ---
+    // Lấy data từ payload.data (nếu bị lồng) hoặc chính payload
+    const data = payload.data || payload;
+
+    // Ép kiểu số an toàn (tránh lỗi undefined/null khi gọi .toFixed)
+    const nps = Number(data.nps || 0);
+    const csat = Number(data.csat || 0);
+    const facility = Number(data.facility || 0);
+    // Lấy overall_score ưu tiên từ payload gốc nếu có, không thì tính toán lại hoặc lấy trong data
+    let overallScore = Number(data.overall_score || payload.overall_score || 0);
+
+    // Thông tin khách hàng (Fallback 'N/A' nếu thiếu)
+    const patientName =
+      data.patientName || data.full_name || data.fullName || "Khách hàng";
+    const phone = data.phone || "N/A";
+    const appointmentId = data.appointmentId || data.booking_id || "N/A";
+    const submittedAt = data.submittedAt || new Date();
+    const staffDoctor = data.staff_doctor || "N/A";
+    const staffReception = data.staff_reception || "N/A";
+    const staffNurse = data.staff_nurse || "N/A";
+    const waitingTime = data.waiting_time || "N/A";
+    const comment = data.comment || "";
+
+    // ------------------------------------------
+
+    const msg = {
+      to: config.sendgrid.cskhEmail,
+      from: config.sendgrid.senderEmail,
+      subject: `[CSKH] ⚠️ Cảnh báo phản hồi - ${patientName} / NPS: ${nps}`,
+      html: `
                 <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;">
                     <div style="background:#d9534f;color:white;padding:20px;border-radius:8px 8px 0 0;">
                         <h2 style="margin:0;">🚨 CẢNH BÁO KHÁCH HÀNG KHÔNG HÀI LÒNG 🚨</h2>
@@ -85,19 +113,21 @@ class EmailService {
                         <table style="width:100%;border-collapse:collapse;">
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Họ tên:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.patientName}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${patientName}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>SĐT:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.phone}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${phone}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Mã booking:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.appointmentId}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${appointmentId}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thời gian gửi:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${new Date(surveyData.submittedAt).toLocaleString('vi-VN')}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${new Date(
+                                  submittedAt
+                                ).toLocaleString("vi-VN")}</td>
                             </tr>
                         </table>
                     </div>
@@ -107,53 +137,63 @@ class EmailService {
                         <table style="width:100%;border-collapse:collapse;">
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;width:40%;"><b>NPS (Net Promoter Score):</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;color:${surveyData.nps < 7 ? '#d9534f' : '#5cb85c'};">
-                                    <b>${surveyData.nps}/10</b>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;color:${
+                                  nps < 7 ? "#d9534f" : "#5cb85c"
+                                };">
+                                    <b>${nps}/10</b>
                                 </td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>CSAT (Customer Satisfaction):</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;">${surveyData.csat}/5</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;">${csat}/5</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Cơ sở vật chất:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.facility}/5</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${facility}/5</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thái độ Bác sĩ:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.staff_doctor || 'N/A'}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${staffDoctor}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thái độ Lễ tân:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.staff_reception || 'N/A'}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${staffReception}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thái độ Điều dưỡng:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.staff_nurse || 'N/A'}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${staffNurse}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thời gian chờ:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.waiting_time || 'N/A'}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${waitingTime}</td>
                             </tr>
                             <tr style="background:#f9f9f9;">
                                 <td style="padding:8px;"><b>Tổng điểm trung bình:</b></td>
-                                <td style="padding:8px;font-size:20px;font-weight:bold;color:${surveyData.overall_score < 7 ? '#d9534f' : '#5cb85c'};">
-                                    ${surveyData.overall_score.toFixed(1)}/10
+                                <td style="padding:8px;font-size:20px;font-weight:bold;color:${
+                                  overallScore < 7 ? "#d9534f" : "#5cb85c"
+                                };">
+                                    ${overallScore.toFixed(1)}/10
                                 </td>
                             </tr>
                         </table>
                     </div>
                     
-                    ${surveyData.comment ? `
+                    ${
+                      comment
+                        ? `
                     <div style="padding:20px;background:#f9f9f9;margin-top:20px;border-left:4px solid #f0ad4e;border-radius:4px;">
                         <h3 style="margin-top:0;">💬 Nhận xét của khách hàng</h3>
-                        <p style="font-size:16px;font-style:italic;">"${surveyData.comment}"</p>
+                        <p style="font-size:16px;font-style:italic;">"${comment}"</p>
                     </div>
-                    ` : ''}
+                    `
+                        : ""
+                    }
                     
                     <div style="padding:20px;background:#e3f2fd;margin-top:20px;border-left:4px solid #2196f3;border-radius:4px;">
                         <h3 style="margin-top:0;color:#1976d2;">🤖 Phân tích & Gợi ý xử lý (AI)</h3>
-                        <pre style="background:white;padding:15px;border-radius:4px;font-family:monospace;white-space:pre-wrap;border:1px solid #90caf9;">${aiAnalysis}</pre>
+                        <pre style="background:white;padding:15px;border-radius:4px;font-family:monospace;white-space:pre-wrap;border:1px solid #90caf9;">${
+                          aiAnalysis || "Đang chờ phân tích..."
+                        }</pre>
                     </div>
                     
                     <div style="padding:20px;background:#d9534f;color:white;margin-top:20px;border-radius:8px;text-align:center;">
@@ -162,29 +202,32 @@ class EmailService {
                         </p>
                     </div>
                 </div>
-            `
-        };
+            `,
+    };
 
-        try {
-            await sgMail.send(msg);
-            console.log(`✅ Alert email sent to CSKH`);
-            return { success: true };
-        } catch (error) {
-            console.error('❌ SendGrid alert error:', error.response?.body || error.message);
-            return { success: false, error: error.message };
-        }
+    try {
+      await sgMail.send(msg);
+      console.log(`✅ Alert email sent to CSKH`);
+      return { success: true };
+    } catch (error) {
+      console.error(
+        "❌ SendGrid alert error:",
+        error.response?.body || error.message
+      );
+      return { success: false, error: error.message };
     }
+  }
 
-    /**
-     * Gửi email reminder cho appointment sắp tới
-     * @param {Object} appointment - Thông tin appointment
-     */
-    async sendAppointmentReminder(appointment) {
-        const msg = {
-            to: appointment.email,
-            from: config.sendgrid.senderEmail,
-            subject: `Nhắc lịch khám – ${appointment.fullName}`,
-            html: `
+  /**
+   * Gửi email reminder cho appointment sắp tới
+   * @param {Object} appointment - Thông tin appointment
+   */
+  async sendAppointmentReminder(appointment) {
+    const msg = {
+      to: appointment.email,
+      from: config.sendgrid.senderEmail,
+      subject: `Nhắc lịch khám – ${appointment.fullName}`,
+      html: `
                 <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:0 auto;padding:20px;">
                     <h2 style="color:#007bff;">📅 Nhắc Lịch Khám</h2>
                     <p>Chào <b>${appointment.fullName}</b>,</p>
@@ -199,31 +242,31 @@ class EmailService {
                     <p>Vui lòng đến đúng giờ. Nếu có thay đổi, vui lòng liên hệ: <b>1900-xxxx</b></p>
                     <p>Trân trọng!</p>
                 </div>
-            `
-        };
+            `,
+    };
 
-        try {
-            await sgMail.send(msg);
-            console.log(`✅ Reminder email sent to ${appointment.email}`);
-            return { success: true };
-        } catch (error) {
-            console.error('❌ SendGrid reminder error:', error.message);
-            return { success: false, error: error.message };
-        }
+    try {
+      await sgMail.send(msg);
+      console.log(`✅ Reminder email sent to ${appointment.email}`);
+      return { success: true };
+    } catch (error) {
+      console.error("❌ SendGrid reminder error:", error.message);
+      return { success: false, error: error.message };
     }
+  }
 
-    /**
-     * Gửi email cảnh báo cho CSKH khi có phản hồi tiêu cực từ cuộc gọi voice
-     * @param {Object} appointment - Thông tin appointment
-     * @param {Object} insights - Phân tích từ cuộc gọi
-     * @param {string} transcript - Nội dung cuộc gọi
-     */
-    async sendVoiceCallAlert(appointment, insights, transcript) {
-        const msg = {
-            to: config.sendgrid.cskhEmail,
-            from: config.sendgrid.senderEmail,
-            subject: `[VOICE] 📞 Cảnh báo - ${appointment.fullName} - ${insights.sentiment}`,
-            html: `
+  /**
+   * Gửi email cảnh báo cho CSKH khi có phản hồi tiêu cực từ cuộc gọi voice
+   * @param {Object} appointment - Thông tin appointment
+   * @param {Object} insights - Phân tích từ cuộc gọi
+   * @param {string} transcript - Nội dung cuộc gọi
+   */
+  async sendVoiceCallAlert(appointment, insights, transcript) {
+    const msg = {
+      to: config.sendgrid.cskhEmail,
+      from: config.sendgrid.senderEmail,
+      subject: `[VOICE] 📞 Cảnh báo - ${appointment.fullName} - ${insights.sentiment}`,
+      html: `
                 <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;">
                     <div style="background:#ff6b6b;color:white;padding:20px;border-radius:8px 8px 0 0;">
                         <h2 style="margin:0;">📞 CẢNH BÁO PHẢN HỒI TIÊU CỰC QUA CUỘC GỌI</h2>
@@ -234,23 +277,33 @@ class EmailService {
                         <table style="width:100%;border-collapse:collapse;">
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;width:30%;"><b>Họ tên:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${appointment.fullName}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${
+                                  appointment.fullName
+                                }</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Số điện thoại:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${appointment.phone}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${
+                                  appointment.phone
+                                }</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Email:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${appointment.email || 'N/A'}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${
+                                  appointment.email || "N/A"
+                                }</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Bác sĩ khám:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${appointment.doctor}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${
+                                  appointment.doctor
+                                }</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thời gian khám:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${appointment.startTimeLocal}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${
+                                  appointment.startTimeLocal
+                                }</td>
                             </tr>
                         </table>
                     </div>
@@ -261,37 +314,61 @@ class EmailService {
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;width:40%;"><b>Cảm xúc tổng thể:</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">
-                                    <span style="display:inline-block;padding:4px 12px;background:${insights.sentiment === 'negative' ? '#d9534f' :
-                    insights.sentiment === 'neutral' ? '#f0ad4e' : '#5cb85c'
-                };color:white;border-radius:4px;font-weight:bold;">
-                                        ${insights.sentiment?.toUpperCase() || 'N/A'}
+                                    <span style="display:inline-block;padding:4px 12px;background:${
+                                      insights.sentiment === "negative"
+                                        ? "#d9534f"
+                                        : insights.sentiment === "neutral"
+                                        ? "#f0ad4e"
+                                        : "#5cb85c"
+                                    };color:white;border-radius:4px;font-weight:bold;">
+                                        ${
+                                          insights.sentiment?.toUpperCase() ||
+                                          "N/A"
+                                        }
                                     </span>
                                 </td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Mức độ hài lòng:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${insights.satisfaction_level || 'N/A'}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${
+                                  insights.satisfaction_level || "N/A"
+                                }</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Điểm NPS (ước tính):</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;font-weight:bold;">
-                                    ${insights.nps_score ? `${insights.nps_score}/10` : 'N/A'}
+                                    ${
+                                      insights.nps_score
+                                        ? `${insights.nps_score}/10`
+                                        : "N/A"
+                                    }
                                 </td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Vấn đề phát hiện:</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">
-                                    ${insights.concerns && insights.concerns.length > 0
-                    ? insights.concerns.map(c => `<span style="display:inline-block;padding:2px 8px;background:#f0ad4e;color:white;border-radius:3px;margin:2px;">${c}</span>`).join(' ')
-                    : 'Không xác định'}
+                                    ${
+                                      insights.concerns &&
+                                      insights.concerns.length > 0
+                                        ? insights.concerns
+                                            .map(
+                                              (c) =>
+                                                `<span style="display:inline-block;padding:2px 8px;background:#f0ad4e;color:white;border-radius:3px;margin:2px;">${c}</span>`
+                                            )
+                                            .join(" ")
+                                        : "Không xác định"
+                                    }
                                 </td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Điểm tích cực:</b></td>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;">
-                                    ${insights.positives && insights.positives.length > 0
-                    ? insights.positives.join(', ')
-                    : 'Không có'}
+                                    ${
+                                      insights.positives &&
+                                      insights.positives.length > 0
+                                        ? insights.positives.join(", ")
+                                        : "Không có"
+                                    }
                                 </td>
                             </tr>
                         </table>
@@ -302,14 +379,20 @@ class EmailService {
                         <div style="background:white;padding:15px;border-radius:4px;max-height:400px;overflow-y:auto;font-family:monospace;font-size:14px;line-height:1.8;white-space:pre-wrap;">${transcript}</div>
                     </div>
                     
-                    ${insights.recommendations ? `
+                    ${
+                      insights.recommendations
+                        ? `
                     <div style="padding:20px;background:#e3f2fd;margin-top:20px;border-left:4px solid #2196f3;border-radius:4px;">
                         <h3 style="margin-top:0;color:#1976d2;">💡 Gợi ý xử lý</h3>
                         <ul style="line-height:1.8;">
-                            ${insights.recommendations.map(r => `<li>${r}</li>`).join('')}
+                            ${insights.recommendations
+                              .map((r) => `<li>${r}</li>`)
+                              .join("")}
                         </ul>
                     </div>
-                    ` : ''}
+                    `
+                        : ""
+                    }
                     
                     <div style="padding:20px;background:#ff6b6b;color:white;margin-top:20px;border-radius:8px;text-align:center;">
                         <p style="margin:0;font-size:18px;font-weight:bold;">
@@ -319,21 +402,28 @@ class EmailService {
                     
                     <div style="padding:15px;background:#f8f9fa;margin-top:20px;border-radius:4px;text-align:center;color:#666;font-size:13px;">
                         <p style="margin:0;">Email tự động từ Healthcare Voice AI System</p>
-                        <p style="margin:5px 0 0 0;">Thời gian: ${new Date().toLocaleString('vi-VN')}</p>
+                        <p style="margin:5px 0 0 0;">Thời gian: ${new Date().toLocaleString(
+                          "vi-VN"
+                        )}</p>
                     </div>
                 </div>
-            `
-        };
+            `,
+    };
 
-        try {
-            await sgMail.send(msg);
-            console.log(`✅ Voice call alert email sent to CSKH for ${appointment.fullName}`);
-            return { success: true };
-        } catch (error) {
-            console.error('❌ SendGrid voice alert error:', error.response?.body || error.message);
-            return { success: false, error: error.message };
-        }
+    try {
+      await sgMail.send(msg);
+      console.log(
+        `✅ Voice call alert email sent to CSKH for ${appointment.fullName}`
+      );
+      return { success: true };
+    } catch (error) {
+      console.error(
+        "❌ SendGrid voice alert error:",
+        error.response?.body || error.message
+      );
+      return { success: false, error: error.message };
     }
+  }
 }
 
 export default new EmailService();

@@ -36,6 +36,7 @@ export const config = {
         departmentsDoctors: process.env.N8N_WEBHOOK_DEPARTMENTS_DOCTORS,
         cancelBooking: process.env.N8N_WEBHOOK_CANCEL_BOOKING,
         updateBooking: process.env.N8N_WEBHOOK_UPDATE_BOOKING,
+        webhookSurvey: process.env.N8N_WEBHOOK_SURVEY,
     },
     firebase: {
         serviceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
