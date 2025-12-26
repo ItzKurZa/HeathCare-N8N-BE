@@ -279,36 +279,17 @@ router.post("/submit", async (req, res) => {
     // Nếu cần cải thiện -> Phân tích AI + Gửi alert
     if (surveyData.improvement_trigger) {
       console.log(
-        `⚠️ Improvement needed for ${patient_name}, checking for duplicates...`
+        `⚠️ Improvement needed for ${patient_name}, triggering AI analysis...`
       );
 
-      // Bọc trong hàm async tự chạy để không block main thread
-      (async () => {
-        try {
-          // BƯỚC 1: Kiểm tra xem đã có alert nào cho booking_id này chưa
-          const existingAlerts = await firestore
-            .collection("alerts")
-            .where("appointmentId", "==", booking_id) // Kiểm tra trùng lặp dựa trên ID lịch hẹn
-            .limit(1)
-            .get();
-
-          // Nếu đã tìm thấy document -> Đã gửi rồi -> Dừng lại
-          if (!existingAlerts.empty) {
-            console.log(
-              `🚫 Duplicate detected: Alert already exists for booking ${booking_id}. Skipping AI & Email.`
-            );
-            return; // THOÁT KHỎI HÀM, không làm gì thêm
-          }
-
-          // BƯỚC 2: Nếu chưa có, bắt đầu chạy AI Analysis
-          console.log(`...No duplicate found. Running AI analysis...`);
-
-          const analysis = await aiAnalyzer.analyze(surveyData);
-
-          // BƯỚC 3: Gửi email
+      // Chạy AI analysis (async, không block response)
+      aiAnalyzer
+        .analyze(surveyData)
+        .then(async (analysis) => {
+          // Gửi email alert cho CSKH
           await emailService.sendAlert(surveyData, analysis);
 
-          // BƯỚC 4: Lưu alert vào Firestore (để chặn các lần gọi sau)
+          // Lưu alert vào Firestore
           await firestore.collection("alerts").add({
             surveyId: surveyRef.id,
             appointmentId: booking_id,
@@ -316,17 +297,17 @@ router.post("/submit", async (req, res) => {
             phone,
             overallScore: surveyData.overall_score,
             analysis,
-            status: "PENDING",
+            status: "PENDING", // PENDING, IN_PROGRESS, RESOLVED
             createdAt: new Date(),
           });
 
           console.log(
             `✅ Alert created and email sent for survey ${surveyRef.id}`
           );
-        } catch (err) {
+        })
+        .catch((err) => {
           console.error("❌ Error processing improvement trigger:", err);
-        }
-      })();
+        });
     }
 
     const n8nWebhookUrl = config.n8n.webhookSurvey;
