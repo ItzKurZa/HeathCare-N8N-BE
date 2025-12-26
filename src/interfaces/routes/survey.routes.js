@@ -211,6 +211,9 @@ router.post("/submit", async (req, res) => {
       comment,
     } = req.body;
 
+    const isN8nRequest =
+      req.headers["user-agent"] && req.headers["user-agent"].includes("n8n");
+
     // Validate required fields
     if (!booking_id || !patient_name || !phone) {
       return res.status(400).json({
@@ -277,7 +280,7 @@ router.post("/submit", async (req, res) => {
     }
 
     // Nếu cần cải thiện -> Phân tích AI + Gửi alert
-    if (surveyData.improvement_trigger) {
+    if (surveyData.improvement_trigger && !isN8nRequest) {
       console.log(
         `⚠️ Improvement needed for ${patient_name}, triggering AI analysis...`
       );
@@ -328,9 +331,6 @@ router.post("/submit", async (req, res) => {
         comment: surveyData.comment,
       },
     };
-
-    const isN8nRequest =
-      req.headers["user-agent"] && req.headers["user-agent"].includes("n8n");
 
     if (!isN8nRequest) {
       axios
