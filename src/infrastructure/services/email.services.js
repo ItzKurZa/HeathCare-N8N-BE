@@ -69,11 +69,35 @@ class EmailService {
      * @param {Object} surveyData - Dữ liệu khảo sát
      * @param {string} aiAnalysis - Phân tích từ AI
      */
-    async sendAlert(surveyData, aiAnalysis) {
+    async sendAlert(payload, aiAnalysis) {
+        // --- BƯỚC 1: CHUẨN HÓA DỮ LIỆU AN TOÀN ---
+        // Lấy data từ payload.data (nếu bị lồng) hoặc chính payload
+        const data = payload.data || payload;
+
+        // Ép kiểu số an toàn (tránh lỗi undefined/null khi gọi .toFixed)
+        const nps = Number(data.nps || 0);
+        const csat = Number(data.csat || 0);
+        const facility = Number(data.facility || 0);
+        // Lấy overall_score ưu tiên từ payload gốc nếu có, không thì tính toán lại hoặc lấy trong data
+        let overallScore = Number(data.overall_score || payload.overall_score || 0);
+        
+        // Thông tin khách hàng (Fallback 'N/A' nếu thiếu)
+        const patientName = data.patientName || data.full_name || data.fullName || 'Khách hàng';
+        const phone = data.phone || 'N/A';
+        const appointmentId = data.appointmentId || data.booking_id || 'N/A';
+        const submittedAt = data.submittedAt || new Date();
+        const staffDoctor = data.staff_doctor || 'N/A';
+        const staffReception = data.staff_reception || 'N/A';
+        const staffNurse = data.staff_nurse || 'N/A';
+        const waitingTime = data.waiting_time || 'N/A';
+        const comment = data.comment || '';
+
+        // ------------------------------------------
+
         const msg = {
             to: config.sendgrid.cskhEmail,
             from: config.sendgrid.senderEmail,
-            subject: `[CSKH] ⚠️ Cảnh báo phản hồi - ${surveyData.patientName} / NPS: ${surveyData.nps}`,
+            subject: `[CSKH] ⚠️ Cảnh báo phản hồi - ${patientName} / NPS: ${nps}`,
             html: `
                 <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;">
                     <div style="background:#d9534f;color:white;padding:20px;border-radius:8px 8px 0 0;">
@@ -85,19 +109,19 @@ class EmailService {
                         <table style="width:100%;border-collapse:collapse;">
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Họ tên:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.patientName}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${patientName}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>SĐT:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.phone}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${phone}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Mã booking:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.appointmentId}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${appointmentId}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thời gian gửi:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${new Date(surveyData.submittedAt).toLocaleString('vi-VN')}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${new Date(submittedAt).toLocaleString('vi-VN')}</td>
                             </tr>
                         </table>
                     </div>
@@ -107,53 +131,53 @@ class EmailService {
                         <table style="width:100%;border-collapse:collapse;">
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;width:40%;"><b>NPS (Net Promoter Score):</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;color:${surveyData.nps < 7 ? '#d9534f' : '#5cb85c'};">
-                                    <b>${surveyData.nps}/10</b>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;color:${nps < 7 ? '#d9534f' : '#5cb85c'};">
+                                    <b>${nps}/10</b>
                                 </td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>CSAT (Customer Satisfaction):</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;">${surveyData.csat}/5</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;font-size:18px;">${csat}/5</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Cơ sở vật chất:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.facility}/5</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${facility}/5</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thái độ Bác sĩ:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.staff_doctor || 'N/A'}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${staffDoctor}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thái độ Lễ tân:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.staff_reception || 'N/A'}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${staffReception}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thái độ Điều dưỡng:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.staff_nurse || 'N/A'}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${staffNurse}</td>
                             </tr>
                             <tr>
                                 <td style="padding:8px;border-bottom:1px solid #ddd;"><b>Thời gian chờ:</b></td>
-                                <td style="padding:8px;border-bottom:1px solid #ddd;">${surveyData.waiting_time || 'N/A'}</td>
+                                <td style="padding:8px;border-bottom:1px solid #ddd;">${waitingTime}</td>
                             </tr>
                             <tr style="background:#f9f9f9;">
                                 <td style="padding:8px;"><b>Tổng điểm trung bình:</b></td>
-                                <td style="padding:8px;font-size:20px;font-weight:bold;color:${surveyData.overall_score < 7 ? '#d9534f' : '#5cb85c'};">
-                                    ${surveyData.overall_score.toFixed(1)}/10
+                                <td style="padding:8px;font-size:20px;font-weight:bold;color:${overallScore < 7 ? '#d9534f' : '#5cb85c'};">
+                                    ${overallScore.toFixed(1)}/10
                                 </td>
                             </tr>
                         </table>
                     </div>
                     
-                    ${surveyData.comment ? `
+                    ${comment ? `
                     <div style="padding:20px;background:#f9f9f9;margin-top:20px;border-left:4px solid #f0ad4e;border-radius:4px;">
                         <h3 style="margin-top:0;">💬 Nhận xét của khách hàng</h3>
-                        <p style="font-size:16px;font-style:italic;">"${surveyData.comment}"</p>
+                        <p style="font-size:16px;font-style:italic;">"${comment}"</p>
                     </div>
                     ` : ''}
                     
                     <div style="padding:20px;background:#e3f2fd;margin-top:20px;border-left:4px solid #2196f3;border-radius:4px;">
                         <h3 style="margin-top:0;color:#1976d2;">🤖 Phân tích & Gợi ý xử lý (AI)</h3>
-                        <pre style="background:white;padding:15px;border-radius:4px;font-family:monospace;white-space:pre-wrap;border:1px solid #90caf9;">${aiAnalysis}</pre>
+                        <pre style="background:white;padding:15px;border-radius:4px;font-family:monospace;white-space:pre-wrap;border:1px solid #90caf9;">${aiAnalysis || 'Đang chờ phân tích...'}</pre>
                     </div>
                     
                     <div style="padding:20px;background:#d9534f;color:white;margin-top:20px;border-radius:8px;text-align:center;">
