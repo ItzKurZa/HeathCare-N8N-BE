@@ -130,6 +130,9 @@ export const sendCancelBookingEmail = async (bookingData) => {
         }
         return dateStr;
     };
+
+    const backendUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL?.replace(/\/$/, '') || 'http://localhost:5002';
+
     
     // Chuẩn bị payload tương thích với hàm prepare email trong N8N
     const payload = {
