@@ -20,15 +20,15 @@ import appointmentsRoutes from './interfaces/routes/appointments.routes.js';
 
 const app = express();
 
-const corsOptions = {
-  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 204,
-};
+// const corsOptions = {
+//   methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization'],
+//   credentials: true,
+//   optionsSuccessStatus: 204,
+// };
 
 // CORS cho mọi request (kể cả OPTIONS)
-app.use(cors(corsOptions));
+app.use(cors());
 
 /**
  * Handler chung cho preflight
